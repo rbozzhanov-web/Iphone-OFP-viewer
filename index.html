@@ -861,19 +861,21 @@ function icaoFields(icao){
    neither is claimed to be the level and both stay in the printed strip.
    The position goes to the end of that strip: it is the longest thing on the
    line and the least use at a glance, so it is what a narrow screen should clip. */
-function wpDetail(up, low, taken, flKnown){
+function wpDetail(up, low, taken, known){
   const mid = up.slice(1, Math.max(1, up.length - 2));
   const dist = up[up.length - 1];
   const lowMid = low.slice(0, Math.max(0, low.length - 2));
   const o = {}, rest = [], tail = [];
   for (const t of mid){
-    if (!o.wind && /^\d{3}\/\d{2,3}$/.test(t)){ o.wind = t; continue; }
+    // Guessed at only where the form does not head the column. A pair of figures
+    // over a slash is as likely to be the magnetic track as the wind — that is
+    // what it turned out to be — so the heading is believed over the shape.
+    if (!known.wind && !o.wind && /^\d{3}\/\d{2,3}$/.test(t)){ o.wind = t; continue; }
     if (/^[NS]\d{2,7}(\.\d+)?[EW]\d{2,7}(\.\d+)?$/.test(t)){ tail.push(t); continue; }
     rest.push(t);
   }
-  // Only guessed at where the form does not head the column: a ground speed is
-  // a three-figure number in the same range as a level.
-  const fl = flKnown ? [] : rest.filter(t => /^(0[1-9]\d|[1-3]\d\d|4[0-5]\d)$/.test(t));
+  // Likewise the level: a ground speed is a three-figure number in the same range.
+  const fl = known.fl ? [] : rest.filter(t => /^(0[1-9]\d|[1-3]\d\d|4[0-5]\d)$/.test(t));
   if (fl.length === 1){ o.fl = fl[0]; rest.splice(rest.indexOf(fl[0]), 1); }
   const all = [...rest, dist, ...lowMid, ...tail].filter(Boolean);
   // Anything already shown in a column of its own is not repeated in the strip.
@@ -895,21 +897,21 @@ function wpDetail(up, low, taken, flKnown){
    so a long value in the column alongside cannot be read for this one. */
 function underHeading(row, h){
   if (!row || !h) return null;
-  let best = null, bestOv = 0;
+  const mid = (h.x + h.x1) / 2;
+  let best = null, bd = 1e9;
   for (const t of row){
     const ov = Math.min(t.x1, h.x1) - Math.max(t.x, h.x);
-    const need = Math.min(t.x1 - t.x, h.x1 - h.x) * 0.5;
-    if (ov > need && ov > bestOv){ bestOv = ov; best = t.t; }
-  }
-  if (best) return best;
-  // Nothing sits under it: a column of narrow figures under a wider heading, or
-  // the other way about. The nearest centre will do, if it is near enough.
-  let nd = 1e9, mid = (h.x + h.x1) / 2;
-  for (const t of row){
+    // A quarter of the narrower of the two is enough to call it this column's:
+    // a line whose figures are a character wider than its neighbour's shifts
+    // everything after it along, and the form does that from row to row.
+    if (ov <= Math.min(t.x1 - t.x, h.x1 - h.x) * 0.25) continue;
     const d = Math.abs((t.x + t.x1) / 2 - mid);
-    if (d < nd){ nd = d; best = t.t; }
+    if (d < bd){ bd = d; best = t.t; }
   }
-  return nd < (h.x1 - h.x) + 12 ? best : null;
+  // Nothing under it means the row left that column empty, and empty is the
+  // answer. Reaching for the nearest figure instead is how a column comes to
+  // show its neighbour's, which is worse than showing nothing.
+  return best;
 }
 // Which heading line a name is printed on, "G/S" and "GS" counting as one.
 const headingSpan = (row, name) => row && row.find(t =>
@@ -992,7 +994,7 @@ async function parse(buf){
         for (let i = 1; i < 4; i++) if (Math.abs(dots[i].x - dots[0].x - cw * i) > 0.8) ok = false;
         if (ok) mark = dots[0];
       }
-      lines.push({ base: last.base, chars, cw, mark, tk });
+      lines.push({ base: last.base, chars, cw, mark, tk, tx: tokensX(chars, cw) });
     }
     lines.sort((a, b) => b.base - a.base);
 
@@ -1000,25 +1002,28 @@ async function parse(buf){
        so a column can later be found by the name printed over it rather than by
        counting tokens along the row.
 
-       They are taken as a block — the run of lines directly above the first
-       waypoint of the table — and kept in the order they are printed. That order
-       is the whole point: the table is written two lines to the waypoint and its
+       Found by the heading of the column the ETO and ATO are written in — they
+       are the two the whole table is built around — and taken with the line
+       under it, which is the second row of headings. The order of the two is the
+       whole point: the table is written two lines to the waypoint and its
        headings the same way, ETO over ATO and G/S over SR, so the upper heading
        line names the upper line of every waypoint and the lower names the lower.
        Read the wrong one of the two and a column gives up its neighbour's
-       figure, which is how the ground speed came to be shown as SR. */
+       figure, which is how the ground speed came to be shown as SR.
+
+       Distance from the first waypoint is no guide to where the headings are:
+       the departure aerodrome's own two lines sit between them, and they carry
+       no dotted ETO to be flown to. */
+    const isHeadLine = l =>
+      l.tx.some(t => (t.t === 'ETO' || t.t === 'ATO') && t.x > 430 && t.x < 545);
+    const looksHeading = l => l.tx.length > 3 && l.tx.every(t => /^[A-Z][A-Z/]*$/.test(t.t));
     let hdr = null;
-    const firstWp = lines.findIndex(l => l.mark);
-    if (firstWp > 0){
-      const block = [];
-      for (let k = firstWp - 1; k >= 0 && block.length < 2; k--){
-        const l = lines[k], below = block.length ? block[0] : lines[firstWp];
-        if (l.mark || l.base - below.base > 30) break;   // too far above to head it
-        block.unshift(l);
-      }
-      // Only the table's own headings will do: the ETO and ATO columns name it.
-      if (block.some(l => l.tk.includes('ETO') || l.tk.includes('ATO')))
-        hdr = block.map(l => tokensX(l.chars, l.cw));
+    const hi = lines.findIndex(isHeadLine);
+    if (hi >= 0){
+      const block = [lines[hi]], nx = lines[hi + 1];
+      if (nx && !nx.mark && lines[hi].base - nx.base < 20 && (isHeadLine(nx) || looksHeading(nx)))
+        block.push(nx);
+      hdr = block.map(l => l.tx);
     }
     // A page that carries the table on without repeating its headings keeps the
     // last ones seen: the columns stand at the same x throughout.
@@ -1072,14 +1077,17 @@ async function parse(buf){
     const ttm = +tt.split('.')[0] * 60 + +tt.split('.')[1];
     if (ttm < prev){ sec++; cum = 0; }
     prev = ttm; cum += +et;
+    // Off their own headings where the form gives them. The level is not always
+    // a level — a climbing leg prints CLB — so it is shown as printed and only
+    // dressed as F330 when it is a figure.
     const sr = srColumn(a, b);
-    // The level off its own heading where the form gives one; the ground speed
-    // is a three-figure number in the same range and used to be read for it.
     const lvl = namedColumn(a, b, 'FL') || namedColumn(a, b, 'LEVEL');
-    const fl = lvl && /^F?\d{2,3}$/.test(lvl) ? lvl.replace(/^F/, '') : null;
+    const wind = namedColumn(a, b, 'WIND');
+    const known = { fl: !!lvl, wind: !!wind };
     pairs.push({ i: pairs.length, wp: a.tok[0], et: +et, cum, sec, page: a.page,
                  rem: /^\d+$/.test(rem) ? +rem : null, drift: cum !== ttm, sr,
-                 ...wpDetail(a.tok, b.tok, [sr, lvl], !!fl), ...(fl ? { fl } : {}) });
+                 ...wpDetail(a.tok, b.tok, [sr, lvl, wind], known),
+                 ...(lvl ? { fl: lvl } : {}), ...(wind ? { wind } : {}) });
     i++;
   }
 
@@ -1430,8 +1438,10 @@ function renderRoute(){
           + (hasSr
              ? `<div class="sr"><b><i>SR</i>${w.sr ? esc(w.sr) : '—'}</b></div>`
              : '')
+          // F330 for a level, CLB as printed for a leg still climbing.
           + (hasFl
-             ? '<div class="fl">' + (w.fl ? `<b>F${esc(w.fl)}</b>` : '')
+             ? '<div class="fl">'
+               + (w.fl ? `<b>${/^\d{2,3}$/.test(w.fl) ? 'F' : ''}${esc(w.fl)}</b>` : '')
                + (w.wind ? `<div class="det">${esc(w.wind)}</div>` : '') + '</div>'
              : '')
           + '<div class="tm">'

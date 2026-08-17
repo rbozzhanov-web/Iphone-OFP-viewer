@@ -103,30 +103,36 @@ counted from the plan's own off-block time, which is named at the top of the
 table. They are the plan's leg times, not a position report, and nothing on this
 page is entered.
 
-Each waypoint carries its running total and the planned fuel remaining, the
-level and the wind where the form's own columns can be recognised beyond doubt,
-and the rest of what is printed on its two lines — airway, temperature,
-distance, ground speed, position — as a strip underneath. The position goes at
-the end of that strip: it is the longest thing on the line and the least use at
-a glance, so it is what a narrow screen clips. The alternate route follows under
-a heading of its own.
+Each waypoint carries its running total and the planned fuel remaining, its
+level and its wind, and the rest of what is printed on its two lines — airway,
+tracks, speeds, distance to go, position — as a strip underneath. The position
+goes at the end of that strip: it is the longest thing on the line and the least
+use at a glance, so it is what a narrow screen clips. The alternate route
+follows under a heading of its own. A leg still climbing shows CLB for its level,
+as the form prints it, rather than a figure it does not have.
 
-**SR** is shown beside each waypoint where the plan carries it — the figure in
-the ground speed's column, on the line under it.
+**SR** is shown beside each waypoint where the plan carries it — the figure
+printed in the ground speed's column, on the line under it.
 
-Columns are found by the heading printed over them and read off by where that
-heading sits across the page, not by counting along the row: a waypoint with no
-airway prints one token fewer than its neighbour, and counting would then take
-the wrong figure. The headings are read as a block and kept in the order they
-are printed, because the table is two lines to the waypoint and its headings are
-laid out the same way — ETO over ATO, G/S over SR — so the upper heading line
-names the upper line of every waypoint and the lower names the lower. Where the
-form heads only the G/S, SR is taken as whatever stands in that column on the
-waypoint's other line. A plan that has neither shows no such column.
+The level, the wind and SR all come off the headings the form prints over them,
+which is the only way to be sure which figure is which. The headings are found by
+the column the ETO and ATO are written in — the two the whole table is built
+around — and taken as the pair of lines they are, in the order they are printed.
+That order is the point: the table is two lines to the waypoint and its headings
+are laid out the same way, ETO over ATO and G/S over SR, so the upper heading
+line names the upper line of every waypoint and the lower names the lower. Read
+the wrong one of the two and a column gives up its neighbour's figure.
 
-The level is read the same way where the form heads it, and only guessed at from
-the shape of the figure where it does not — a ground speed is a three-figure
-number in the same range as a level, and the two are otherwise easy to confuse.
+Nothing is counted along the row. A waypoint with no airway prints one token
+fewer than its neighbour, and whole rows shift a character sideways where a
+figure runs wider, so a column is matched on the page it covers instead. Where a
+row leaves a column empty, empty is the answer: reaching for the nearest figure
+is how a column comes to show its neighbour's.
+
+Guessing from the shape of a figure is the last resort, for a form that heads
+nothing. It is a poor one — a ground speed is a three-figure number in the same
+range as a level, and a pair of figures over a slash is as likely to be the
+magnetic track as the wind.
 
 Where the plan's own leg times do not add up to its running total, the tab says
 so at the top and names how many waypoints disagree.
