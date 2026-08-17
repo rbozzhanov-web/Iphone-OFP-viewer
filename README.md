@@ -94,10 +94,10 @@ crosses, equipment, PBN, SELCAL.
 
 ### Route
 
-Every waypoint with the leg times the plan gives it. The times down the right
-are counted from the off-block time in the box at the top; it starts at the
-plan's own ETD and the whole column follows if it is changed, which is how a
-delay is read off the table without arithmetic.
+Every waypoint with the leg times the plan gives it. The times down the right are
+counted from the plan's own off-block time, which is named at the top of the
+table. They are the plan's leg times, not a position report, and nothing on this
+page is entered.
 
 Each waypoint carries its running total and the planned fuel remaining, the
 level and the wind where the form's own columns can be recognised beyond doubt,
