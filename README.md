@@ -107,6 +107,13 @@ the end of that strip: it is the longest thing on the line and the least use at
 a glance, so it is what a narrow screen clips. The alternate route follows under
 a heading of its own.
 
+**SR** is shown beside each waypoint where the plan carries that column. It is
+found by the heading printed over it and read off by where that heading sits
+across the page, not by counting along the row — a waypoint with no airway prints
+one token fewer than its neighbour, and counting would then take the wrong
+figure. It is labelled with the form's own heading and nothing is claimed about
+what it means. A plan whose table has no such heading shows no such column.
+
 Where the plan's own leg times do not add up to its running total, the tab says
 so at the top and names how many waypoints disagree.
 
@@ -130,8 +137,10 @@ before acting on any of it.
 The full-page sheets in the package — wind components, tropopause and MORA
 profile along the route, and the significant weather charts with the route drawn
 on them. The images are pulled straight out of the PDF, so nothing is re-rendered
-or re-compressed. **Zoom** switches between fitting the whole sheet on screen and
-full size with scrolling.
+or re-compressed. **Pinch** to zoom and drag to move about the sheet, **double
+tap** to go in and back out, **Fit** to put the whole sheet back on the screen.
+The sheet is held at its edges rather than let go into the page, and a wheel or a
+trackpad does the same on a computer.
 
 ### ICAO
 
