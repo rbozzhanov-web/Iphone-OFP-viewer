@@ -75,8 +75,15 @@ button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
    Two lines and no more: what the document is, and the way into its parts. The
    phone gives about 640 points of height and every one spent up here is one the
    plan does not get. */
+/* The inset is what the device says the status bar takes; the 14 points on top
+   of it are for what it does not say. On a phone with an island the status bar
+   is drawn as glass over whatever lies beneath it and it reaches lower than the
+   inset it reports, which put the flight number under a blur. The floor under
+   the inset covers a browser that reports none at all while still running the
+   page up to the top of the glass. */
 .bar{position:sticky;top:0;z-index:20;background:var(--hdr);
-  border-bottom:1px solid var(--gold);padding-top:env(safe-area-inset-top)}
+  border-bottom:1px solid var(--gold);
+  padding-top:calc(max(env(safe-area-inset-top, 0px), 16px) + 14px)}
 .bartop{display:flex;align-items:center;gap:10px;
   padding:9px max(12px,env(safe-area-inset-right)) 9px max(12px,env(safe-area-inset-left))}
 .ident{flex:1;min-width:0}
@@ -155,12 +162,10 @@ main{max-width:760px;margin:0 auto;
   padding:11px 13px;border-bottom:1px solid var(--line)}
 .base label{font:600 10px/1.2 -apple-system,system-ui,sans-serif;letter-spacing:.7px;
   text-transform:uppercase;color:var(--dim)}
-.base input{background:var(--bg);border:1px solid var(--line);color:var(--eto);border-radius:8px;
-  padding:8px 10px;width:94px;text-align:center;letter-spacing:2px;
-  font:700 17px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
-.base input:focus{outline:none;border-color:var(--acc)}
-/* Pushed to the far end rather than parted from the box by a spacer: a spacer
-   that can grow takes the whole line and drops this onto the next one. */
+.base label b{margin-left:5px;font:700 13px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.6px;color:var(--eto)}
+/* Pushed to the far end rather than parted from the line by a spacer: a spacer
+   that can grow takes the whole row and drops this onto the next one. */
 .base .grow{margin-left:auto;text-align:right}
 .wp{display:flex;align-items:flex-start;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line2)}
 .wp:last-child{border-bottom:0}
@@ -210,11 +215,16 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
 /* ================= charts ================= */
 .chartnav{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--line)}
 .chartnav .who{flex:1;font:11.5px/1.3 ui-monospace,Menlo,monospace;color:var(--dim)}
-.chartbox{background:#fff;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-  max-height:calc(100vh - 260px);min-height:180px;text-align:center}
-.chartbox img{display:block;margin:0 auto;max-width:100%;height:auto}
-.chartbox.zoom img{max-width:none;width:auto}
-.chartbox p{margin:0;padding:50px 14px;color:#5d6b7a;font-size:13px}
+/* The sheet is moved by the fingers on it, so the box owns its gestures outright
+   — touch-action:none — and the picture is placed by a transform rather than by
+   the box's own scrolling. A definite height is part of that: the fit, the
+   clamp and the centring are all worked out against it. */
+.chartbox{position:relative;overflow:hidden;background:#fff;touch-action:none;
+  height:calc(100vh - 270px);min-height:260px}
+@supports(height:100dvh){.chartbox{height:calc(100dvh - 270px)}}
+.chartbox img{position:absolute;top:0;left:0;transform-origin:0 0;
+  -webkit-user-select:none;user-select:none;-webkit-user-drag:none;max-width:none}
+.chartbox p{margin:0;padding:50px 14px;color:#5d6b7a;font-size:13px;text-align:center}
 
 .empty{padding:26px 14px;text-align:center;color:var(--dim);font-size:13.5px;line-height:1.6}
 .foot{margin:14px 2px 0;font-size:11.5px;line-height:1.7;color:var(--fld)}
@@ -1305,26 +1315,17 @@ function renderRoute(){
       (drift ? `<div class="msg show warn">At ${drift} waypoint${drift > 1 ? 's' : ''} the leg times `
              + 'do not add up to the plan\'s own running total — check those by hand.</div>' : '')
     + '<div class="card flush" style="margin-top:11px">'
-    + '<div class="base"><label for="baseIn">Off block</label>'
-    + `<input id="baseIn" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" `
-    + `autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done" `
-    + `placeholder="----" `
-    + `value="${BASE === null ? '' : clock(BASE)}">`
+    // A line that says where the column starts, not a box that invites a change
+    // to it. Nothing on this page is entered; the plan's own off-block time is
+    // the only base there is.
+    + '<div class="base">'
+    + `<label>Off block <b>${BASE === null ? '—' : clock(BASE)}</b></label>`
     + `<label class="grow">${main.length} waypoints`
     + `${p.pairs.length > main.length ? ' + ' + (p.pairs.length - main.length) + ' altn' : ''}</label>`
     + '</div>'
     + rows + '</div>'
-    + '<p class="foot">The times on the left of each waypoint are counted from the off-block time '
-    + 'above — change it and they all follow. They are the plan\'s own leg times, not a '
-    + 'position report.</p>';
-
-  const inp = $('#baseIn');
-  inp.oninput = e => { e.target.value = e.target.value.replace(/\D/g, ''); };
-  inp.onchange = () => {
-    const t = parseHHMM(inp.value);
-    if (t !== null || !inp.value.trim()){ BASE = t; renderRoute(); }
-  };
-  inp.onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
+    + '<p class="foot">The times on the left of each waypoint are the plan\'s own leg times counted '
+    + 'from its off-block time — not a position report.</p>';
 }
 
 /* ================= weather ================= */
@@ -1414,18 +1415,17 @@ function renderCharts(){
       '<div class="card flush"><div class="chartnav">'
     + '<button type="button" class="ghost sm" id="cPrev">Prev</button>'
     + '<span class="who" id="cWho"></span>'
-    + '<button type="button" class="ghost sm" id="cZoom">Zoom</button>'
+    + '<button type="button" class="ghost sm" id="cFit">Fit</button>'
     + '<button type="button" class="ghost sm" id="cNext">Next</button>'
     + '</div><div class="chartbox" id="cBox"><p>Loading…</p></div></div>'
     + '<p class="foot">The wind components, the tropopause and MORA profile, and the significant '
-    + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Zoom</b> switches '
-    + 'between fitting the sheet and full size; a zoomed sheet is dragged to move about it.</p>';
+    + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Pinch</b> to zoom '
+    + 'and drag to move about the sheet; <b>double tap</b> goes in and back out, and <b>Fit</b> '
+    + 'puts the whole sheet back on the screen.</p>';
   $('#cPrev').onclick = () => { if (chartAt > 0){ chartAt--; paintChart(); } };
   $('#cNext').onclick = () => { if (chartAt < CHARTS.length - 1){ chartAt++; paintChart(); } };
-  $('#cZoom').onclick = () => {
-    const on = $('#cBox').classList.toggle('zoom');
-    $('#cZoom').textContent = on ? 'Fit' : 'Zoom';
-  };
+  $('#cFit').onclick = () => fitChart();
+  bindPinch($('#cBox'));
   paintChart();
 }
 
@@ -1435,17 +1435,123 @@ async function paintChart(){
   $('#cWho').textContent = `${chartAt + 1} of ${CHARTS.length} · page ${c.page + 1}`;
   $('#cPrev').disabled = chartAt === 0;
   $('#cNext').disabled = chartAt === CHARTS.length - 1;
-  box.classList.remove('zoom');
-  $('#cZoom').textContent = 'Zoom';
   if (!c.url){
     box.innerHTML = '<p>Decoding…</p>';
     try { c.url = await chartUrl(DOC, DOC.pages()[c.page], c.key); }
     catch (e){ box.innerHTML = `<p>Could not read this chart: ${esc(e.message)}</p>`; return; }
     if (CHARTS[chartAt] !== c) return;              // paged on while decoding
   }
-  box.innerHTML = `<img src="${c.url}" alt="Chart on page ${c.page + 1}">`;
-  box.scrollTop = box.scrollLeft = 0;
+  box.innerHTML = `<img src="${c.url}" alt="Chart on page ${c.page + 1}" draggable="false">`;
+  const img = box.querySelector('img');
+  // A cached image can be complete before the load event would ever fire.
+  if (img.complete && img.naturalWidth) fitChart(); else img.onload = () => fitChart();
 }
+
+/* ---- moving about a sheet ----
+   A chart is a picture to be handled, not a page to be scrolled: two fingers
+   size it, one moves it, two taps go in and back out. It is done on a transform
+   rather than by scrolling the box, so the same arithmetic serves the pinch, the
+   drag and the double tap, and the sheet can be held still at the edges instead
+   of being let go into the surrounding page. */
+const VIEW = { scale: 1, fit: 1, tx: 0, ty: 0, w: 0, h: 0 };
+const MAXZ = 12;                       // times the fitted size; a chart is a big bitmap
+
+function chartImg(){ const b = $('#cBox'); return b && b.querySelector('img'); }
+
+function fitChart(){
+  const box = $('#cBox'), img = chartImg();
+  if (!box || !img || !img.naturalWidth) return;
+  if (!box.clientWidth || !box.clientHeight) return;   // the tab is not on screen
+  VIEW.w = img.naturalWidth; VIEW.h = img.naturalHeight;
+  VIEW.fit = Math.min(box.clientWidth / VIEW.w, box.clientHeight / VIEW.h);
+  VIEW.scale = VIEW.fit;
+  applyView();
+}
+// Held inside the box while it is larger than the box, centred while it is not.
+function applyView(){
+  const box = $('#cBox'), img = chartImg();
+  if (!box || !img) return;
+  const bw = box.clientWidth, bh = box.clientHeight;
+  const w = VIEW.w * VIEW.scale, h = VIEW.h * VIEW.scale;
+  VIEW.tx = w <= bw ? (bw - w) / 2 : Math.min(0, Math.max(bw - w, VIEW.tx));
+  VIEW.ty = h <= bh ? (bh - h) / 2 : Math.min(0, Math.max(bh - h, VIEW.ty));
+  img.style.transform = `translate(${VIEW.tx}px,${VIEW.ty}px) scale(${VIEW.scale})`;
+  const fit = $('#cFit');
+  if (fit) fit.disabled = VIEW.scale <= VIEW.fit * 1.01;
+}
+// Scale about a point of the box, so the sheet grows out of what is under the
+// fingers rather than out of its own corner.
+function zoomAt(k, px, py){
+  const s = Math.max(VIEW.fit, Math.min(VIEW.fit * MAXZ, VIEW.scale * k));
+  const f = s / VIEW.scale;
+  VIEW.tx = px - (px - VIEW.tx) * f;
+  VIEW.ty = py - (py - VIEW.ty) * f;
+  VIEW.scale = s;
+  applyView();
+}
+
+function bindPinch(box){
+  if (!box || box.dataset.pinch) return;
+  box.dataset.pinch = '1';
+  const pts = new Map();
+  let prev = null, tapAt = 0, moved = 0;
+
+  // One finger reports where it is; two report where they are between them and
+  // how far apart, which is all a pinch is.
+  const pose = () => {
+    const a = [...pts.values()], r = box.getBoundingClientRect();
+    if (a.length >= 2){
+      const mx = (a[0].x + a[1].x) / 2, my = (a[0].y + a[1].y) / 2;
+      return { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), x: mx - r.left, y: my - r.top };
+    }
+    return { d: 0, x: a[0].x - r.left, y: a[0].y - r.top };
+  };
+
+  box.addEventListener('pointerdown', e => {
+    if (!chartImg()) return;
+    box.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    prev = pose();
+    if (pts.size === 1) moved = 0;
+  });
+  box.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = pose();
+    if (prev){
+      if (p.d && prev.d) zoomAt(p.d / prev.d, p.x, p.y);
+      VIEW.tx += p.x - prev.x; VIEW.ty += p.y - prev.y;
+      moved += Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y);
+      applyView();
+    }
+    prev = p;
+  });
+  const up = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    prev = pts.size ? pose() : null;               // the finger left behind takes over
+    if (pts.size || moved > 12 || !chartImg()) return;
+    const now = Date.now(), r = box.getBoundingClientRect();
+    if (now - tapAt < 320){
+      tapAt = 0;
+      if (VIEW.scale > VIEW.fit * 1.05) fitChart();
+      else zoomAt(3, e.clientX - r.left, e.clientY - r.top);
+    } else tapAt = now;
+  };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
+  // A trackpad and a mouse wheel, for reading the same chart on a computer.
+  box.addEventListener('wheel', e => {
+    if (!chartImg()) return;
+    e.preventDefault();
+    const r = box.getBoundingClientRect();
+    zoomAt(Math.exp(-e.deltaY / 320), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+}
+
+// A turn of the phone changes the box under the sheet, so the sheet is fitted to
+// it again rather than left hanging off an edge.
+addEventListener('resize', () => { if (chartImg()) fitChart(); });
 
 /* ================= the ICAO plan ================= */
 function renderFpl(){
