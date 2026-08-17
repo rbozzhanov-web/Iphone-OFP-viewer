@@ -107,12 +107,22 @@ the end of that strip: it is the longest thing on the line and the least use at
 a glance, so it is what a narrow screen clips. The alternate route follows under
 a heading of its own.
 
-**SR** is shown beside each waypoint where the plan carries that column. It is
-found by the heading printed over it and read off by where that heading sits
-across the page, not by counting along the row — a waypoint with no airway prints
-one token fewer than its neighbour, and counting would then take the wrong
-figure. It is labelled with the form's own heading and nothing is claimed about
-what it means. A plan whose table has no such heading shows no such column.
+**SR** is shown beside each waypoint where the plan carries it — the figure in
+the ground speed's column, on the line under it.
+
+Columns are found by the heading printed over them and read off by where that
+heading sits across the page, not by counting along the row: a waypoint with no
+airway prints one token fewer than its neighbour, and counting would then take
+the wrong figure. The headings are read as a block and kept in the order they
+are printed, because the table is two lines to the waypoint and its headings are
+laid out the same way — ETO over ATO, G/S over SR — so the upper heading line
+names the upper line of every waypoint and the lower names the lower. Where the
+form heads only the G/S, SR is taken as whatever stands in that column on the
+waypoint's other line. A plan that has neither shows no such column.
+
+The level is read the same way where the form heads it, and only guessed at from
+the shape of the figure where it does not — a ground speed is a three-figure
+number in the same range as a level, and the two are otherwise easy to confuse.
 
 Where the plan's own leg times do not add up to its running total, the tab says
 so at the top and names how many waypoints disagree.
