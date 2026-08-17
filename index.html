@@ -75,15 +75,17 @@ button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
    Two lines and no more: what the document is, and the way into its parts. The
    phone gives about 640 points of height and every one spent up here is one the
    plan does not get. */
-/* The inset is what the device says the status bar takes; the 14 points on top
+/* The inset is what the device says the status bar takes; the 24 points on top
    of it are for what it does not say. On a phone with an island the status bar
    is drawn as glass over whatever lies beneath it and it reaches lower than the
-   inset it reports, which put the flight number under a blur. The floor under
-   the inset covers a browser that reports none at all while still running the
-   page up to the top of the glass. */
+   inset it reports, which put the flight number under a blur. Settled on the
+   phone rather than worked out: 14 points cleared the glass, and the four
+   millimetres this comes to sit the title where the eye wants it. The floor
+   under the inset covers a browser that reports none at all while still running
+   the page up to the top of the glass. */
 .bar{position:sticky;top:0;z-index:20;background:var(--hdr);
   border-bottom:1px solid var(--gold);
-  padding-top:calc(max(env(safe-area-inset-top, 0px), 16px) + 14px)}
+  padding-top:calc(max(env(safe-area-inset-top, 0px), 16px) + 24px)}
 .bartop{display:flex;align-items:center;gap:10px;
   padding:9px max(12px,env(safe-area-inset-right)) 9px max(12px,env(safe-area-inset-left))}
 .ident{flex:1;min-width:0}

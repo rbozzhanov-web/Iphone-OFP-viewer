@@ -33,13 +33,17 @@ as it stands:
 
 That address is the app. Every push to `main` republishes it.
 
-To release a new version, bump the `V` constant in `sw.js` in the same commit as
-the change to `index.html`. The page itself is fetched from the network whenever
-there is one, so a new version is picked up on the next launch rather than
-waiting on a service-worker update check; if the network does not answer within
-2.5 seconds the app starts from its cache instead, so a slow link never delays
-it. Offline it never updates — the version you leave the ground with is the
-version you fly with.
+The page itself is fetched from the network whenever there is one, so a new
+version is picked up on the next launch rather than waiting on a service-worker
+update check; if the network does not answer within 2.5 seconds the app starts
+from its cache instead, so a slow link never delays it. A change to
+`index.html` therefore needs nothing else done to it. Bump the `V` constant in
+`sw.js` when one of the other cached files changes — the manifest or an icon —
+since those are served from the cache first and a new generation is what
+replaces them.
+
+Offline it never updates — the version you leave the ground with is the version
+you fly with.
 
 ## Putting it on the iPhone
 
