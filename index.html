@@ -58,6 +58,10 @@ button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
 #drop{border:2px dashed var(--line);border-radius:12px;padding:34px 18px;text-align:center;
   cursor:pointer;background:var(--panel2);font-size:16px}
 #drop.over{border-color:var(--acc)}
+.loadbtns{display:flex;gap:10px;flex-wrap:wrap}
+.loadbtns button{flex:1 1 auto}
+.loadbtns button.hide+button{flex:0 1 auto}
+#resetBtn{color:var(--err);border-color:color-mix(in srgb,var(--err) 40%,transparent)}
 #drop b{color:var(--acc)}
 #drop .fn{margin-top:8px;font-size:13px;color:var(--dim);word-break:break-all}
 .disc{display:flex;align-items:flex-start;gap:9px;margin:0;font-size:12.5px;line-height:1.6;color:var(--dim)}
@@ -87,11 +91,17 @@ button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
   border-bottom:1px solid var(--gold);
   padding-top:calc(max(env(safe-area-inset-top, 0px), 16px) + 24px)}
 .bartop{display:flex;align-items:center;gap:10px;
-  padding:9px max(12px,env(safe-area-inset-right)) 9px max(12px,env(safe-area-inset-left))}
+  padding:9px max(12px,env(safe-area-inset-right)) 5px max(12px,env(safe-area-inset-left))}
 .ident{flex:1;min-width:0}
-.ident b{display:block;font:700 16px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.4px}
-.ident span{display:block;margin-top:2px;font:11.5px/1.3 ui-monospace,Menlo,monospace;color:var(--dim);
+.ident b{display:block;font:700 16px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.4px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* The document names itself in full. Squeezed in beside the buttons it had about
+   two hundred and sixty points to say forty characters in and lost the end of
+   the release time to an ellipsis; on a line of its own it has the whole width
+   of the screen, and wraps rather than clips if it ever needs more. */
+.barsub{padding:0 max(12px,env(safe-area-inset-right)) 7px max(12px,env(safe-area-inset-left));
+  font:11.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);word-break:break-word}
+.barsub:empty{display:none}
 .barbtn{flex:0 0 auto;width:40px;height:40px;padding:0;display:grid;place-items:center;
   background:transparent;border:1px solid var(--line);border-radius:9px;color:var(--dim)}
 .barbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;
@@ -185,6 +195,8 @@ main{max-width:760px;margin:0 auto;
 /* Read off the form under its own heading, so it is labelled with that heading
    and nothing is claimed about what it means. */
 .wp .sr b{font:700 13px/1.25 ui-monospace,Menlo,monospace;color:var(--txt);white-space:nowrap}
+/* Company threshold: 05 and above is worth seeing before it is looked for. */
+.wp .sr b.hi{color:var(--err)}
 .wp .sr i{font-style:normal;font-weight:400;font-size:10.5px;color:var(--dim);
   letter-spacing:.6px;margin-right:4px}
 .wp.sec{background:var(--hdr);padding:8px 13px;
@@ -254,7 +266,10 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
   </div>
   <input type="file" id="file" accept="application/pdf,.pdf" class="hide">
   <div class="msg" id="m1"></div>
-  <div><button type="button" class="ghost hide" id="backBtn">Back to the plan</button></div>
+  <div class="loadbtns">
+    <button type="button" class="ghost hide" id="backBtn">Back to the plan</button>
+    <button type="button" class="ghost hide" id="resetBtn">Reset</button>
+  </div>
   <p class="disc">Only Air Astana computerized flight plans are supported. The document is read
     on this device and goes nowhere else — no network, no account, no key.</p>
 </div>
@@ -263,13 +278,11 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
 <div id="appView" class="hide">
   <header class="bar">
     <div class="bartop">
-      <div class="ident">
-        <b id="hTitle">—</b>
-        <span id="hSub"></span>
-      </div>
+      <div class="ident"><b id="hTitle">—</b></div>
       <button type="button" class="barbtn" id="themeBtn" aria-label="Colour theme" title="Colour theme"></button>
-      <button type="button" class="barbtn" id="openBtn" aria-label="Open another plan" title="Open another plan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h5.2l1.8 2H20v9.5H4z"/><path d="M12 16.5v-5.2M9.6 13.4L12 11l2.4 2.4"/></svg></button>
+      <button type="button" class="barbtn" id="homeBtn" aria-label="Start screen" title="Start screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 11.2 12 4.5l8.4 6.7"/><path d="M6.2 9.4V19.5h11.6V9.4"/></svg></button>
     </div>
+    <div class="barsub" id="hSub"></div>
     <nav class="tabs" id="tabs" role="tablist">
       <button type="button" role="tab" data-tab="flight" aria-selected="true">Flight</button>
       <button type="button" role="tab" data-tab="route" aria-selected="false">Route<i id="nRoute"></i></button>
@@ -1230,22 +1243,32 @@ addEventListener('drop', e => {
   const f = e.dataTransfer && e.dataTransfer.files[0];
   if (f){ e.preventDefault(); load(f); }
 });
-// Opening another plan must never cost the crew the one already on screen: the
-// load screen keeps a way back for a cancelled picker and for a file that turns
-// out not to be a plan.
-$('#openBtn').onclick = () => {
-  hideMsg('#m1');
-  showApp(false);
-  $('#file').value = '';
-  $('#file').click();
-};
+/* The start screen is where a plan comes from and where it can be put down
+   again. Going there costs nothing — the plan is still loaded and Back returns
+   to it — so the file picker is not forced open on the way; that took the
+   screen away from anyone who only wanted to look at it. */
+$('#homeBtn').onclick = () => { hideMsg('#m1'); showApp(false); };
 $('#backBtn').onclick = () => showApp(true);
+$('#resetBtn').onclick = reset;
 
 function showApp(on){
   $('#appView').classList.toggle('hide', !on);
   $('#loadView').classList.toggle('hide', on);
-  $('#backBtn').classList.toggle('hide', on || !PLAN);
+  for (const b of ['#backBtn', '#resetBtn']) $(b).classList.toggle('hide', on || !PLAN);
   scrollTo(0, 0);
+}
+
+// Puts the document down: the plan, what was decoded from it, and the copy kept
+// for the next launch. What is left is the screen the app opens on.
+function reset(){
+  for (const c of CHARTS) if (c.url) URL.revokeObjectURL(c.url);
+  CHARTS = []; chartAt = 0;
+  PLAN = null; DOC = null; NAME = '';
+  $('#fname').textContent = '';
+  $('#file').value = '';
+  hideMsg('#m1');
+  dropSession();
+  showApp(false);
 }
 
 async function load(f){ return loadBuffer(f.name, f.size, await f.arrayBuffer(), false); }
@@ -1407,6 +1430,10 @@ function renderFlight(){
 
 /* ================= route ================= */
 let BASE = null;                       // the time the ETO column is counted from
+// Shear rate at or past 05 is marked. Read as a number so a plan that prints it
+// unpadded, or past 09, is judged the same as one that pads it to two figures.
+const SR_MARK = 5;
+const srHigh = v => /^\d+$/.test(v || '') && +v >= SR_MARK;
 
 function renderRoute(){
   const p = PLAN;
@@ -1436,7 +1463,8 @@ function renderRoute(){
           // The name goes beside the figure, not under it: under it the label
           // lands level with the wind and the two read as one thing.
           + (hasSr
-             ? `<div class="sr"><b><i>SR</i>${w.sr ? esc(w.sr) : '—'}</b></div>`
+             ? `<div class="sr"><b${srHigh(w.sr) ? ' class="hi"' : ''}>`
+               + `<i>SR</i>${w.sr ? esc(w.sr) : '—'}</b></div>`
              : '')
           // F330 for a level, CLB as printed for a leg still climbing.
           + (hasFl
@@ -1795,6 +1823,10 @@ async function keepSession(name, size, buf){
     await idbSet('last', { name, size, buf });
     localStorage.setItem(LAST, JSON.stringify({ name, size, at: Date.now() }));
   } catch(e){ /* quota or private mode — carry on without resume */ }
+}
+async function dropSession(){
+  try { localStorage.removeItem(LAST); } catch(e){}
+  try { await idbSet('last', null); } catch(e){}
 }
 async function resumeSession(){
   if (typeof indexedDB === 'undefined') return;

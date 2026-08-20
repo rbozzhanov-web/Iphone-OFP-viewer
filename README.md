@@ -62,9 +62,12 @@ Files or in an attachment saved from Mail. A PDF dropped anywhere on the page
 works too, on a device that can drag one.
 
 The plan is then kept on the device, so opening the app again brings back the
-same document without going to look for the file. **Open** in the header — the
-second button — takes another one, and offers the way back if you change your
-mind.
+same document without going to look for the file.
+
+The house in the header returns to this screen with the plan still loaded, so
+another one can be chosen — or **Back to the plan** returns to the one open.
+**Reset** puts the document down for good: the plan, what was decoded from it,
+and the copy kept for the next launch. The app then opens empty.
 
 ---
 
@@ -112,7 +115,8 @@ follows under a heading of its own. A leg still climbing shows CLB for its level
 as the form prints it, rather than a figure it does not have.
 
 **SR** is shown beside each waypoint where the plan carries it — the figure
-printed in the ground speed's column, on the line under it.
+printed in the ground speed's column, on the line under it. **05 and above is
+marked red**, so a rough stretch is seen rather than looked for.
 
 The level, the wind and SR all come off the headings the form prints over them,
 which is the only way to be sure which figure is which. The headings are found by
