@@ -1459,12 +1459,22 @@ async function loadBuffer(name, size, buf, resumed){
 }
 
 /* ================= the header ================= */
+// DOF is field 18's own — YYMMDD, no separators, the ICAO form's date of flight.
+// Read back out in the form's own day-month-year order rather than its digits,
+// it names the plan at a glance without asking the pilot to parse a six-figure run.
+const MON = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const dofDate = s => /^\d{6}$/.test(s || '')
+  ? `${s.slice(4, 6)} ${MON[+s.slice(2, 4) - 1]} ${s.slice(0, 2)}` : null;
+
+// Everything the bar used to carry here — the route, the airports, REQ, issued —
+// is the flight tab's own first card as well, and a phone is not so wide that the
+// same line is worth reading twice. The bar keeps only what tells one plan from
+// the next at a glance: the flight number and the day it is for.
 function renderHeader(){
-  const f = PLAN.icaoF || {}, o = PLAN.ofp || {};
-  const leg = f.dep && f.dest ? f.dep + ' → ' + f.dest : null;
-  $('#hTitle').textContent = [f.callsign, leg].filter(Boolean).join('   ') || NAME;
-  $('#hSub').textContent = [o.route, o.req && 'REQ ' + o.req, o.issued].filter(Boolean).join(' · ')
-                        || NAME;
+  const f = PLAN.icaoF || {};
+  $('#hTitle').textContent = [f.callsign, dofDate(f.f18 && f.f18.DOF)].filter(Boolean).join('   ')
+                           || NAME;
+  $('#hSub').textContent = '';
   const n = (el, v) => { const e = $(el); e.textContent = v ? String(v) : ''; };
   n('#nRoute', PLAN.pairs.filter(p => p.sec === 1).length);
   n('#nWx', PLAN.wx.airports.length);
