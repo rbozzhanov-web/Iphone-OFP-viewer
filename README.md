@@ -164,6 +164,14 @@ counted from the plan's own off-block time, which is named at the top of the
 table. They are the plan's leg times, not a position report, and nothing on this
 page is entered.
 
+Every column but the waypoint's name is set to a width of its own rather than to
+the width of what it happens to hold: the running total and the fuel are
+`4:22 · 8 698` on one waypoint and `3:38 · 11 060` on the next, a figure wider,
+and sized to content the whole row shifted along by the difference — so SR and
+the level stepped left and right down the page and nothing lined up. The name is
+the column that takes what is left, because it is the one that can be clipped
+without a figure going with it.
+
 Each waypoint carries its running total and the planned fuel remaining, its
 level and its wind, and the rest of what is printed on its two lines — airway,
 tracks, speeds, distance to go, position — as a strip underneath. The position
@@ -224,6 +232,12 @@ app around it held still; **two taps** go in on what is under them and back out
 to the whole sheet; **Fit** puts it back from the toolbar. The sheet is held at
 its edges rather than let go into the page, and a wheel or a trackpad does the
 same on a computer.
+
+**One tap puts the app away** and gives the sheet the screen — nine tenths of it
+in portrait, near enough all of it sideways. What stays is the row that pages
+between the charts and puts the size back: a sheet is read against its
+neighbours, and coming back out to reach Next would be a poor trade for the forty
+points it costs. A tap again brings the app back, as does leaving the tab.
 
 ### ICAO
 

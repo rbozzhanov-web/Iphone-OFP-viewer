@@ -233,11 +233,19 @@ main{will-change:transform}
 .wp .nm b{font:700 15.5px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.4px}
 .wp .det{margin-top:3px;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wp .tm{flex:0 0 auto;text-align:right}
+/* Every column but the name is set to a width of its own, not to the width of
+   what it happens to hold. Sized to content they were: the running total and the
+   fuel are "4:22 · 8 698" on one waypoint and "3:38 · 11 060" on the next, a
+   figure wider, and the whole row shifted along by the difference — so SR and
+   the level stepped left and right down the page and nothing lined up. The name
+   is the one column that takes what is left, because it is the one that can be
+   clipped without losing a figure. */
+.wp .tm{flex:0 0 auto;width:92px;text-align:right}
 .wp .tm b{font:700 16px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--eto);
   font-variant-numeric:tabular-nums}
 .wp .tm .det{color:var(--dim)}
-.wp .fl,.wp .sr{flex:0 0 auto;text-align:right;min-width:42px}
+.wp .fl{flex:0 0 auto;width:50px;text-align:right}
+.wp .sr{flex:0 0 auto;width:44px;text-align:right}
 .wp .fl b{font:700 13px/1.25 ui-monospace,Menlo,monospace;color:var(--gold)}
 .wp .fl .det,.wp .sr .det{color:var(--dim)}
 /* Read off the form under its own heading, so it is labelled with that heading
@@ -247,6 +255,12 @@ main{will-change:transform}
 .wp .sr b.hi{color:var(--err)}
 .wp .sr i{font-style:normal;font-weight:400;font-size:10.5px;color:var(--dim);
   letter-spacing:.6px;margin-right:4px}
+@media(max-width:380px){
+  .wp{gap:7px;padding-left:11px;padding-right:11px}
+  .wp .tm{width:88px}
+  .wp .fl{width:46px}
+  .wp .sr{width:41px}
+}
 .wp.sec{background:var(--hdr);padding:8px 13px;
   font:700 10.5px/1.4 -apple-system,system-ui,sans-serif;letter-spacing:.9px;
   text-transform:uppercase;color:var(--dim)}
@@ -340,6 +354,25 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
     .chartbox{height:calc(100dvh - 138px)}
   }
 }
+
+/* ---- the sheet, and nothing else ----
+   A tap on a chart puts the app away: header, tabs and the note under the card
+   go, and the sheet takes the screen. What stays is the row that pages between
+   the four of them and puts the size back — a chart is looked at against its
+   neighbours, and having to come back out to reach Next would be a poor trade
+   for the forty points it costs.
+
+   A tap again brings the app back, as it does in anything else that shows a
+   picture full screen. */
+.sheetfull .bar,.sheetfull .foot{display:none}
+.sheetfull main{padding:0;max-width:none}
+.sheetfull #p-charts{display:flex;flex-direction:column;height:100vh}
+@supports(height:100dvh){.sheetfull #p-charts{height:100dvh}}
+.sheetfull #p-charts .card{display:flex;flex-direction:column;flex:1;min-height:0;
+  margin:0;border:0;border-radius:0;box-shadow:none}
+.sheetfull .chartnav{padding-top:max(env(safe-area-inset-top,0px),8px)}
+.sheetfull .chartbox{flex:1;height:auto;max-height:none;min-height:0;border-radius:0}
+body.locked{overflow:hidden}
 
 .empty{padding:26px 14px;text-align:center;color:var(--dim);font-size:13.5px;line-height:1.6}
 .foot{margin:14px 2px 0;font-size:11.5px;line-height:1.7;color:var(--fld)}
@@ -1695,7 +1728,8 @@ function renderCharts(){
     + '<p class="foot">The wind components, the tropopause and MORA profile, and the significant '
     + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Pinch</b> to size '
     + 'the sheet and drag to move about it — the app around it holds still. <b>Two taps</b> go in '
-    + 'on what is under them, and back to the whole sheet.</p>';
+    + 'on what is under them, and back to the whole sheet. <b>One tap</b> puts the app away and '
+    + 'gives the sheet the screen.</p>';
   $('#cPrev').onclick = () => { if (chartAt > 0){ chartAt--; paintChart(); } };
   $('#cNext').onclick = () => { if (chartAt < CHARTS.length - 1){ chartAt++; paintChart(); } };
   $('#cFit').onclick = () => fitChart();
@@ -1768,7 +1802,7 @@ function bindPinch(box){
   if (!box || box.dataset.pinch) return;
   box.dataset.pinch = '1';
   const pts = new Map();
-  let prev = null, tapAt = 0, moved = 0;
+  let prev = null, tapAt = 0, moved = 0, waiting = null;
 
   // One finger reports where it is; two report where they are between them and
   // how far apart, which is all a pinch is.
@@ -1806,11 +1840,19 @@ function bindPinch(box){
     prev = pts.size ? pose() : null;               // the finger left behind takes over
     if (pts.size || moved > 12 || !chartImg()) return;
     const now = Date.now(), r = box.getBoundingClientRect();
+    // One tap puts the app away, two go in on what is under them. A single tap
+    // therefore waits out the window in which a second could still arrive; the
+    // second cancels it, which is why it is a timer and not an else.
     if (now - tapAt < 320){
       tapAt = 0;
+      clearTimeout(waiting); waiting = null;
       if (VIEW.scale > VIEW.fit * 1.05) fitChart();
       else zoomAt(3, e.clientX - r.left, e.clientY - r.top);
-    } else tapAt = now;
+    } else {
+      tapAt = now;
+      clearTimeout(waiting);
+      waiting = setTimeout(() => { waiting = null; sheetOnly(); }, 330);
+    }
   };
   box.addEventListener('pointerup', up);
   box.addEventListener('pointercancel', up);
@@ -1823,9 +1865,22 @@ function bindPinch(box){
   }, { passive: false });
 }
 
+/* The app steps aside for the sheet, and comes back. The sheet is fitted again
+   on the way in and out: the box it is measured against has just changed size,
+   and a picture left at the old fit hangs off an edge of the new one. */
+function sheetOnly(on){
+  const app = $('#appView');
+  if (!app || !chartImg()) return;
+  const want = on === undefined ? !app.classList.contains('sheetfull') : !!on;
+  app.classList.toggle('sheetfull', want);
+  document.body.classList.toggle('locked', want);
+  requestAnimationFrame(() => fitChart());
+}
+
 // A turn of the phone changes the box under the sheet, so the sheet is fitted to
 // it again rather than left hanging off an edge.
 addEventListener('resize', () => { if (chartImg()) fitChart(); });
+addEventListener('keydown', e => { if (e.key === 'Escape') sheetOnly(false); });
 
 
 /* ================= the ICAO plan ================= */
@@ -1877,6 +1932,7 @@ function showTab(name, from){
   // The strip scrolls sideways and the tab swiped to may be off the end of it.
   const btn = document.querySelector(`[data-tab="${name}"]`);
   if (btn) btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  if (name !== 'charts') sheetOnly(false);
   if (name === 'charts') renderCharts();
   scrollTo(0, 0);
 }
