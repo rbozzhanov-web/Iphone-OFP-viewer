@@ -1,0 +1,140 @@
+name: iOS app
+
+# Builds OFP Viewer on a macOS runner and publishes an installable build.
+#
+# The .ipa produced here is UNSIGNED. Apple will not let an unsigned app onto a device
+# directly — it has to be signed with somebody's certificate first, which is what AltStore,
+# Sideloadly and the like do on your own machine with your own Apple ID. TestFlight needs
+# a real signing identity instead; see ios/README.md.
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths:
+      - "ios/**"
+      - "index.html"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Version to publish, e.g. v1.0.0. Leave empty to only build."
+        required: false
+        default: ""
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain in use
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # The reader is bundled by a build phase that copies index.html out of the
+      # repository root. If that file is not where the phase expects it, the build
+      # fails there rather than shipping an app with an empty screen — but a check
+      # here says so in one line instead of eighty.
+      - name: The reader is where the build expects it
+        run: |
+          test -f index.html
+          echo "index.html: $(wc -c < index.html) bytes"
+
+      # Compiles the SwiftUI shell against the real SDK. No signing involved, so it
+      # needs no secrets and runs on every push.
+      - name: Build for the simulator
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project OFPViewer.xcodeproj \
+            -scheme OFPViewer \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$RUNNER_TEMP/build.log" | xcbeautify --renderer github-actions
+
+      # xcodebuild buries the diagnostics in thousands of lines of command lines, and the
+      # raw log is far too large to read through. This is the part anyone actually wants.
+      - name: Diagnostics
+        if: failure()
+        run: |
+          echo "## Compiler diagnostics" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -hoE '[^ /]+\.swift:[0-9]+:[0-9]+: (error|warning): .*' \
+            "$RUNNER_TEMP"/*.log | sort -u | head -80 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive for a device, unsigned
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project OFPViewer.xcodeproj \
+            -scheme OFPViewer \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/OFPViewer.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            2>&1 | tee "$RUNNER_TEMP/archive.log" | xcbeautify --renderer github-actions
+
+      # The one thing worth checking about this app that a compiler cannot: that the
+      # reader actually got into the bundle, and is the one in this commit.
+      - name: The reader is in the bundle
+        run: |
+          app=$(ls -d "$RUNNER_TEMP"/OFPViewer.xcarchive/Products/Applications/*.app)
+          test -f "$app/index.html"
+          a=$(shasum -a 256 index.html | cut -d' ' -f1)
+          b=$(shasum -a 256 "$app/index.html" | cut -d' ' -f1)
+          echo "repository $a"
+          echo "bundle     $b"
+          test "$a" = "$b"
+
+      # An .ipa is a zip with the .app inside a Payload folder, and nothing else is
+      # required for a sideloader to re-sign it.
+      - name: Package the IPA
+        run: |
+          cd "$RUNNER_TEMP"
+          mkdir -p Payload
+          cp -R OFPViewer.xcarchive/Products/Applications/*.app Payload/
+          zip -qry OFP-Viewer.ipa Payload
+          ls -lh OFP-Viewer.ipa
+
+      - name: Upload the build
+        uses: actions/upload-artifact@v4
+        with:
+          name: OFP-Viewer-ipa
+          path: ${{ runner.temp }}/OFP-Viewer.ipa
+          if-no-files-found: error
+          retention-days: 90
+
+      # An artifact expires; a release is a stable address to send people to. Either a v*
+      # tag or running this workflow by hand with a version in the box makes one — the tag
+      # is created from the commit being built, so it needs no separate push.
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.release || github.ref_name }}
+        run: |
+          gh release create "$VERSION" \
+            "$RUNNER_TEMP/OFP-Viewer.ipa" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "OFP Viewer $VERSION" \
+            --notes-file .github/release-notes.md
+
+permissions:
+  contents: write

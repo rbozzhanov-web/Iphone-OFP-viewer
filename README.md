@@ -18,6 +18,12 @@ built for a phone held in one hand.
 > that app's own PDF engine and parsers — the same plans read the same way. The
 > companion is what fills the document in and saves it; this is what reads it.
 
+> **There is also an app.** `ios/` holds a SwiftUI shell around this same page,
+> built into an `.ipa` on GitHub's macOS runners, for putting the viewer in
+> another pilot's hands through TestFlight. It is unsigned and needs an Apple
+> Developer account to go further — see [`ios/README.md`](ios/README.md). Added
+> to the home screen from Safari, the page needs none of it.
+
 ---
 
 ## Publishing it
