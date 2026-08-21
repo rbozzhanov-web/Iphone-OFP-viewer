@@ -84,6 +84,25 @@ claims it. The page never asks to be unscalable and no element takes the gesture
 for itself, so it is iOS's own zoom, with its own rubber-banding and its own
 double tap. Arrow keys turn the tabs on a computer.
 
+## How it looks
+
+The chrome is glass. The plan runs under the header rather than stopping at it,
+and the header is a tinted, blurred sheet over whatever is passing beneath —
+with the scroll edge the system uses: at the top of a tab there is nothing behind
+the bar to show through, so it carries no blur and no rule and reads as part of
+the page; the moment the plan starts to pass under it, the glass and the hairline
+come up.
+
+Controls are capsules. The toolbar buttons are round, the tab in hand is a
+capsule lit along its top edge, and the cards are the system's grouped lists —
+filled, wide-cornered, hairline-separated — rather than drawn boxes. Print
+colours are untouched by any of it: what a figure means is never carried by how
+it is lit.
+
+Where **Reduce Transparency** is on, or the browser cannot make glass at all, the
+chrome is simply solid. Where **Reduce Motion** is on, tabs do not slide. Nothing
+is lost in either case but the effect.
+
 ## What is on the five tabs
 
 ### Flight

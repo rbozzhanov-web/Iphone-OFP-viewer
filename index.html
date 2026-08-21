@@ -22,6 +22,13 @@
   --ok:#3fb950; --warn:#d29922; --err:#f85149;
   --gold:#9b804d; --hdr:#131a21; --fld:#4a5560;
   --eto:#7aa9ff; --ato:#4cc06a;
+  /* Chrome is glass: a tint thin enough to see the plan move under it, heavy
+     enough that the flight number stays readable over a table of figures even
+     where the blur behind it is not drawn. */
+  --glass:rgba(19,26,33,.86); --glassbrd:rgba(255,255,255,.10);
+  --spec:rgba(255,255,255,.16);          /* the light along a glass edge */
+  --lift:0 6px 20px rgba(0,0,0,.35);
+  --r-card:20px; --r-in:13px; --r-pill:999px;
 }
 html[data-theme=light]{
   --bg:#f2f5f8; --panel:#ffffff; --panel2:#f1f4f7; --line:#d6dde4; --line2:#e6ebf0;
@@ -29,6 +36,9 @@ html[data-theme=light]{
   --ok:#1a7f37; --warn:#9a6700; --err:#cf222e;
   --gold:#8a6f3e; --hdr:#eef2f6; --fld:#9aa7b4;
   --eto:#0b62d6; --ato:#1a7f37;
+  --glass:rgba(248,250,252,.86); --glassbrd:rgba(0,0,0,.08);
+  --spec:rgba(255,255,255,.65);
+  --lift:0 6px 20px rgba(16,32,48,.10);
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -38,24 +48,27 @@ body{margin:0;background:var(--bg);color:var(--txt);-webkit-tap-highlight-color:
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .hide{display:none!important}
 
-button{background:var(--acc2);color:#fff;border:0;border-radius:9px;padding:13px 20px;
-  font-size:15px;font-weight:600;cursor:pointer;touch-action:manipulation;min-height:46px}
-button:active:not(:disabled){transform:scale(.98)}
+button{background:var(--acc2);color:#fff;border:0;border-radius:var(--r-pill);padding:13px 22px;
+  font-size:15px;font-weight:600;cursor:pointer;touch-action:manipulation;min-height:46px;
+  transition:transform .12s ease,filter .12s ease}
+button:active:not(:disabled){transform:scale(.96)}
 button:disabled{opacity:.4}
-button.ghost{background:transparent;border:1px solid var(--line);color:var(--dim)}
-button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
+button.ghost{background:color-mix(in srgb,var(--panel) 70%,transparent);
+  border:.5px solid var(--line);color:var(--dim);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%)}
+button.sm{padding:9px 15px;font-size:13px;min-height:38px}
 
 /* ================= the load screen ================= */
 .load{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;
   gap:18px;padding:max(24px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-left))
   calc(28px + env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-right));
   max-width:560px;margin:0 auto}
-.load .brand{background:#fff;border-radius:9px;padding:10px 15px;align-self:flex-start;
+.load .brand{background:#fff;border-radius:var(--r-in);padding:10px 15px;align-self:flex-start;
   box-shadow:0 0 0 1px rgba(0,0,0,.07)}
 .load .brand svg{height:22px;width:auto;display:block}
 .load h1{font-size:23px;margin:0 0 4px;letter-spacing:.3px}
 .load .sub{color:var(--dim);font-size:14px;line-height:1.55}
-#drop{border:2px dashed var(--line);border-radius:12px;padding:34px 18px;text-align:center;
+#drop{border:1.5px dashed var(--line);border-radius:var(--r-card);padding:36px 18px;text-align:center;
   cursor:pointer;background:var(--panel2);font-size:16px}
 #drop.over{border-color:var(--acc)}
 .loadbtns{display:flex;gap:10px;flex-wrap:wrap}
@@ -66,7 +79,7 @@ button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
 #drop .fn{margin-top:8px;font-size:13px;color:var(--dim);word-break:break-all}
 .disc{display:flex;align-items:flex-start;gap:9px;margin:0;font-size:12.5px;line-height:1.6;color:var(--dim)}
 .disc::before{content:"";flex:0 0 auto;width:6px;height:6px;margin-top:7px;border-radius:50%;background:var(--gold)}
-.msg{font-size:13.5px;padding:11px 13px;border-radius:8px;display:none;line-height:1.5}
+.msg{font-size:13.5px;padding:12px 14px;border-radius:var(--r-in);display:none;line-height:1.5}
 .msg.show{display:block}
 .msg.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);
   border:1px solid color-mix(in srgb,var(--ok) 34%,transparent)}
@@ -87,9 +100,27 @@ button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
    millimetres this comes to sit the title where the eye wants it. The floor
    under the inset covers a browser that reports none at all while still running
    the page up to the top of the glass. */
-.bar{position:sticky;top:0;z-index:20;background:var(--hdr);
-  border-bottom:1px solid var(--gold);
+/* The plan runs under the chrome rather than stopping at it, and the chrome is
+   glass over it. At the very top there is nothing behind the bar to show through,
+   so it carries no blur and no rule and reads as part of the page; the moment
+   the plan starts to pass beneath, the glass and the hairline come up. That is
+   the scroll edge, and it is the whole of the effect. */
+.bar{position:sticky;top:0;z-index:20;background:transparent;
+  border-bottom:.5px solid transparent;
+  transition:background .22s ease,border-color .22s ease,box-shadow .22s ease;
   padding-top:calc(max(env(safe-area-inset-top, 0px), 16px) + 24px)}
+.bar.lifted{background:var(--glass);border-bottom-color:var(--gold);
+  box-shadow:inset 0 .5px 0 var(--spec);
+  -webkit-backdrop-filter:blur(28px) saturate(190%);backdrop-filter:blur(28px) saturate(190%)}
+/* Where the system is asked for less transparency, or the browser cannot make
+   glass at all, the bar is simply solid. Nothing is lost but the effect. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .bar.lifted{background:var(--hdr)}
+}
+@media(prefers-reduced-transparency:reduce){
+  .bar.lifted{background:var(--hdr);-webkit-backdrop-filter:none;backdrop-filter:none}
+  button.ghost{background:var(--panel);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
 .bartop{display:flex;align-items:center;gap:10px;
   padding:9px max(12px,env(safe-area-inset-right)) 5px max(12px,env(safe-area-inset-left))}
 .ident{flex:1;min-width:0}
@@ -103,18 +134,26 @@ button.sm{padding:8px 13px;font-size:13px;min-height:38px;border-radius:8px}
   font:11.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);word-break:break-word}
 .barsub:empty{display:none}
 .barbtn{flex:0 0 auto;width:40px;height:40px;padding:0;display:grid;place-items:center;
-  background:transparent;border:1px solid var(--line);border-radius:9px;color:var(--dim)}
+  background:color-mix(in srgb,var(--panel) 55%,transparent);border:.5px solid var(--glassbrd);
+  border-radius:var(--r-pill);color:var(--dim);box-shadow:inset 0 .5px 0 var(--spec);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%)}
 .barbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;
   stroke-linecap:round;stroke-linejoin:round;display:block}
 /* The tabs scroll sideways rather than shrink: five legible labels do not fit
    across 375 points, and a label clipped to three letters names nothing. */
+/* The strip starts where the title above it starts, so the capsule's leading
+   edge lines up with the flight number rather than hanging outside it. */
 .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;
-  padding:0 max(8px,env(safe-area-inset-left)) 7px max(8px,env(safe-area-inset-right))}
+  padding:0 max(12px,env(safe-area-inset-left)) 7px max(12px,env(safe-area-inset-right))}
 .tabs::-webkit-scrollbar{display:none}
-.tabs button{flex:0 0 auto;background:transparent;border:0;border-radius:8px;color:var(--dim);
-  padding:8px 13px;min-height:36px;font-size:13.5px;font-weight:600;letter-spacing:.2px}
-.tabs button[aria-selected=true]{background:color-mix(in srgb,var(--acc) 16%,transparent);
-  color:var(--acc);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 38%,transparent)}
+.tabs button{flex:0 0 auto;background:transparent;border:0;border-radius:var(--r-pill);
+  color:var(--dim);padding:8px 15px;min-height:36px;font-size:13.5px;font-weight:600;
+  letter-spacing:.2px;transition:background .18s ease,color .18s ease}
+/* The tab in hand is a capsule that floats over the strip, lit along its top
+   edge, the way the system marks the one it is showing. */
+.tabs button[aria-selected=true]{background:color-mix(in srgb,var(--acc) 17%,transparent);
+  color:var(--acc);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--acc) 34%,transparent),
+  inset 0 .5px 0 var(--spec),0 1px 3px rgba(0,0,0,.10)}
 .tabs button i{font-style:normal;margin-left:6px;font-size:11px;opacity:.75;
   font-family:ui-monospace,Menlo,monospace}
 
@@ -128,14 +167,17 @@ main{max-width:760px;margin:0 auto;
 .panel.slide{animation:tabin .2s cubic-bezier(.32,.72,0,1)}
 @keyframes tabin{from{opacity:0;transform:translate3d(var(--from,0),0,0)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.panel.slide{animation:none}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-  padding:13px;margin-bottom:11px}
+/* Grouped like the system's own lists: a filled card with a soft edge rather
+   than a drawn box, and a radius wide enough for the corners to read as one
+   shape with the tiles set inside them. */
+.card{background:var(--panel);border:.5px solid var(--glassbrd);border-radius:var(--r-card);
+  padding:14px;margin-bottom:11px;box-shadow:0 1px 2px rgba(16,32,48,.04)}
 .card.flush{padding:0;overflow:hidden}
 .ttl{display:flex;align-items:baseline;gap:8px;font:600 11px/1.3 -apple-system,system-ui,sans-serif;
   letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin-bottom:11px}
 .ttl em{margin-left:auto;font-style:normal;letter-spacing:.3px;text-transform:none;
   font:11.5px/1.3 ui-monospace,Menlo,monospace;color:var(--fld)}
-.card.flush .ttl{margin:0;padding:11px 13px;border-bottom:1px solid var(--line)}
+.card.flush .ttl{margin:0;padding:12px 14px;border-bottom:.5px solid var(--line)}
 
 /* the two aerodromes, as big as the screen will give */
 .hero{display:flex;align-items:center;gap:10px}
@@ -151,7 +193,7 @@ main{max-width:760px;margin:0 auto;
 .metaline b{color:var(--acc);font-weight:700}
 
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:7px}
-.tile{background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:8px 6px;text-align:center}
+.tile{background:var(--panel2);border:.5px solid var(--line2);border-radius:var(--r-in);padding:9px 6px;text-align:center}
 .tile span{display:block;font:600 10px/1.2 -apple-system,system-ui,sans-serif;
   letter-spacing:.7px;text-transform:uppercase;color:var(--dim)}
 .tile b{display:block;margin-top:4px;font:700 19px/1.15 ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -164,7 +206,7 @@ main{max-width:760px;margin:0 auto;
 .countdown.past b{color:var(--dim)}
 
 .kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-  padding:8px 0;border-bottom:1px solid var(--line2);font-size:13.5px}
+  padding:8px 0;border-bottom:.5px solid var(--line2);font-size:13.5px}
 .card.flush .kv{padding:8px 13px}
 .kv:last-child{border-bottom:0}
 .kv .k{color:var(--dim);flex:0 0 auto}
@@ -184,7 +226,7 @@ main{max-width:760px;margin:0 auto;
 /* Pushed to the far end rather than parted from the line by a spacer: a spacer
    that can grow takes the whole row and drops this onto the next one. */
 .base .grow{margin-left:auto;text-align:right}
-.wp{display:flex;align-items:flex-start;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line2)}
+.wp{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:.5px solid var(--line2)}
 .wp:last-child{border-bottom:0}
 .wp .nm{flex:1;min-width:0}
 .wp .nm b{font:700 15.5px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.4px}
@@ -211,19 +253,19 @@ main{max-width:760px;margin:0 auto;
 /* ================= weather ================= */
 .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;margin-bottom:10px}
 .chips::-webkit-scrollbar{display:none}
-.chips button{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--dim);
-  border-radius:20px;padding:7px 13px;min-height:36px;
+.chips button{flex:0 0 auto;background:var(--panel2);border:.5px solid var(--line);color:var(--dim);
+  border-radius:var(--r-pill);padding:8px 15px;min-height:36px;
   font:700 12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px}
 .chips button[aria-pressed=true]{background:color-mix(in srgb,var(--acc) 16%,transparent);
   border-color:color-mix(in srgb,var(--acc) 42%,transparent);color:var(--acc)}
-select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
-  border-radius:9px;padding:11px 10px;
+select{width:100%;background:var(--panel2);border:.5px solid var(--line);color:var(--txt);
+  border-radius:var(--r-in);padding:12px 12px;
   font:700 15px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
 pre{margin:0;padding:12px 13px;overflow-x:auto;-webkit-overflow-scrolling:touch;
   font:13px/1.62 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
 pre.rep{color:var(--txt)}
 pre.rep+pre.rep{border-top:1px solid var(--line2)}
-.ntm{padding:11px 13px;border-bottom:1px solid var(--line2)}
+.ntm{padding:12px 14px;border-bottom:.5px solid var(--line2)}
 .ntm:last-child{border-bottom:0}
 .ntm .id{font:700 12px/1.4 ui-monospace,Menlo,monospace;color:var(--acc)}
 .ntm .val{font-size:11px;color:var(--dim);margin-left:8px}
@@ -245,7 +287,7 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
    anything else. The box only fits the sheet to the screen, or lets it stand at
    full size and scrolls under it. */
 .chartbox{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-  background:#fff;text-align:center;
+  background:#fff;text-align:center;border-radius:0 0 calc(var(--r-card) - 1px) calc(var(--r-card) - 1px);
   max-height:calc(100vh - 270px);min-height:200px}
 @supports(max-height:100dvh){.chartbox{max-height:calc(100dvh - 270px)}}
 .chartbox img{display:block;margin:0 auto;max-width:100%;height:auto}
@@ -644,6 +686,16 @@ $('#themeBtn').onclick = () =>
   try { t = localStorage.getItem('etofill:theme'); } catch(e){}
   if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   applyTheme(t);
+})();
+
+/* The scroll edge: nothing behind the bar at the top of a page, glass the moment
+   there is. Read off the page's own scroll rather than an observer, because the
+   bar is sticky and has no element of its own to watch. */
+(() => {
+  const bar = document.querySelector('.bar');
+  const edge = () => bar.classList.toggle('lifted', scrollY > 4);
+  addEventListener('scroll', edge, { passive: true });
+  edge();
 })();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
