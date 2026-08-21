@@ -1743,10 +1743,17 @@ function renderCharts(){
       + 'this package.</p></div>';
     return;
   }
+  // Both nodes a chart's preview will ever need are here from the start, the
+  // picture hidden behind the word until there is one. Decoding then only ever
+  // flips which of the two shows — it never removes a node from the card, which
+  // matters for the finger that may already be on it: WebKit drops the rest of a
+  // touch's moves the moment the element it began on is taken out of the page,
+  // and a swipe begun on a card is exactly the gesture this tab must not eat.
   panel.innerHTML = CHARTS.map((c, i) =>
       `<div class="card flush chartcard" data-chart="${i}">`
     + `<div class="ttl">Chart ${i + 1} of ${CHARTS.length}<em>page ${c.page + 1}</em></div>`
-    + `<div class="preview"><p>Decoding…</p></div></div>`).join('')
+    + `<div class="preview"><p>Decoding…</p><img class="hide" alt="Chart on page ${c.page + 1}">`
+    + '</div></div>').join('')
     + '<p class="foot">The wind components, the tropopause and MORA profile, and the significant '
     + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Tap one</b> to '
     + 'open it: pinch to size the sheet, drag to move about it, two taps to go in on what is '
@@ -1776,9 +1783,11 @@ async function decodePreviews(){
     if (mine !== previewRun) return;
     const slot = document.querySelector(`.chartcard[data-chart="${i}"] .preview`);
     if (!slot) return;                              // the tab was left
-    slot.innerHTML = c.url
-      ? `<img src="${c.url}" alt="Chart on page ${c.page + 1}">`
-      : `<p>Could not read this chart: ${esc(c.bad || 'unknown')}</p>`;
+    // Set on the two nodes already there rather than written in over them —
+    // see why above.
+    const word = slot.querySelector('p'), pic = slot.querySelector('img');
+    if (c.url){ pic.src = c.url; pic.classList.remove('hide'); word.classList.add('hide'); }
+    else { word.textContent = `Could not read this chart: ${c.bad || 'unknown'}`; word.classList.remove('hide'); }
   }
 }
 
