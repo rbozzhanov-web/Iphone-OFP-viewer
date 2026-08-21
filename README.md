@@ -219,6 +219,17 @@ validity and subject line above the text, then the company NOTAMs. A busy
 aerodrome runs to eighty-odd NOTAMs, so the first eight are shown and the rest
 open on a tap.
 
+**The TAF group the flight actually flies into is picked out.** The
+departure's own TAF is read for ETD, the destination's and every alternate's
+for ETA, the en-route alternate's for the flight's midpoint — a diversion has
+no better instant to be judged against. FM, BECMG, TEMPO and PROB30/PROB40
+are resolved the way the form prints them: FM replaces the forecast outright
+and holds until the next change; BECMG's new conditions stand from the end of
+its window until superseded; TEMPO and PROB30/PROB40 are highlighted only for
+the window printed on their own line, alongside whichever of those governs at
+that moment. An aerodrome named for no role of its own, or a plan carrying no
+date of flight, gets no highlight — there is no instant here worth guessing at.
+
 Everything here is as old as the document. Re-brief from the current source
 before acting on any of it.
 

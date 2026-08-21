@@ -280,6 +280,11 @@ pre{margin:0;padding:12px 13px;overflow-x:auto;-webkit-overflow-scrolling:touch;
   font:13px/1.62 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
 pre.rep{color:var(--txt)}
 pre.rep+pre.rep{border-top:1px solid var(--line2)}
+/* The change group the flight actually flies into, picked out the same way
+   the selected chip above it is — a tint of the accent, not a print colour,
+   since nothing about what the group says has changed. */
+mark.tafnow{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inherit;
+  border-radius:4px;box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 40%,transparent)}
 .ntm{padding:12px 14px;border-bottom:.5px solid var(--line2)}
 .ntm:last-child{border-bottom:0}
 .ntm .id{font:700 12px/1.4 ui-monospace,Menlo,monospace;color:var(--acc)}
@@ -1679,6 +1684,113 @@ const spaced = s => s.replace(/^(METAR|SPECI|TAF)([A-Z]{4}\s)/, '$1 $2');
 const GROUPS = [['flight', 'This flight'], ['fir', 'Areas along the route'], ['other', 'Other aerodromes']];
 const NTM_FIRST = 8;                   // enough to see; the rest opens on a tap
 
+/* ---- when the flight is at each aerodrome ----
+   The plan's own STD/ETD and STA/ETA, against the DOF, are the only clock this
+   app has. Without a DOF the day is a guess (see departureIn), and a guessed
+   day is worse than none — so an undated plan gets no highlighting at all,
+   the same way it gets no countdown. */
+function flightWindow(){
+  const f = PLAN.icaoF || {}, fpl = PLAN.fpl || {};
+  const dof = f.f18 && f.f18.DOF && /^\d{6}$/.test(f.f18.DOF) ? f.f18.DOF : null;
+  const dep = parseHHMM(fpl.ETD || fpl.STD || f.off);
+  if (!dof || dep === null) return null;
+  const depMs = Date.UTC(2000 + +dof.slice(0, 2), +dof.slice(2, 4) - 1, +dof.slice(4, 6)) + dep * 60000;
+  const arr = parseHHMM(fpl.ETA || fpl.STA);
+  const arrMs = arr === null ? null : depMs + norm(arr - dep) * 60000;
+  return { depMs, arrMs, midMs: arrMs === null ? null : depMs + (arrMs - depMs) / 2 };
+}
+// Departure gets the TAF read for ETD, destination and every alternate for
+// ETA (a diversion is flown close to the arrival it replaces), the en-route
+// alternate for the midpoint of the flight — the plan gives no better instant
+// for a stop that is only ever a contingency. Nothing else in the package
+// (an area along the route, an aerodrome named for no role of its own) has an
+// instant this app can defend, so it is left unhighlighted rather than guessed.
+function tafTarget(a, win){
+  if (!win) return null;
+  if (a.role === 'departure' && win.depMs != null) return { ms: win.depMs, label: 'ETD' };
+  if ((a.role === 'destination' || a.role === 'alternate') && win.arrMs != null)
+    return { ms: win.arrMs, label: 'ETA' };
+  if (a.role === 'en-route alternate' && win.midMs != null) return { ms: win.midMs, label: 'mid' };
+  return null;
+}
+const hhmmZ = ms => { const d = new Date(ms);
+  return String(d.getUTCHours()).padStart(2, '0') + String(d.getUTCMinutes()).padStart(2, '0') + 'Z'; };
+
+/* ---- TAF change-group highlighting ----
+   A TAF's own change groups — FM, BECMG, TEMPO, PROB30/PROB40 — carry a
+   day-of-month and an hour (FM also a minute) but never a month or year, so
+   each is only ever resolved against an instant already known to fall within
+   a day or two of it: the flight's own clock, never the device's.
+   https://www.weather.gov (TAF decode) and ICAO Annex 3 agree on the shape:
+   FM replaces everything before it outright and holds until the next FM or
+   BECMG; BECMG is a gradual change occupying its own window, in force
+   afterwards until superseded; TEMPO and PROB30/PROB40 are fluctuations or
+   probabilities superimposed on whichever of those is in force, valid only
+   for the window printed on their own line. */
+const RE_TAF_HDR = /\bTAF(?:\s+(?:AMD|COR))?\s+[A-Z]{4}\s+\d{6}Z\s+(\d{2})(\d{2})\/(\d{2})(\d{2})/;
+const RE_CHG = /\b(FM(\d{2})(\d{2})(\d{2})|BECMG|TEMPO|PROB(?:30|40))\b/g;
+const RE_WIN = /(\d{2})(\d{2})\/(\d{2})(\d{2})/;
+
+// A day-of-month and hour (and, for FM, a minute) with no month of its own,
+// resolved to whichever of the month before, the anchor's own month, or the
+// month after puts it nearest the anchor — the flight is never sixty days
+// from the plan it flew on, so the nearest reading is the right one.
+function resolveDH(d, h, mi, anchorMs){
+  const day = h === 24 ? d + 1 : d, hour = h === 24 ? 0 : h;
+  const anchor = new Date(anchorMs);
+  let best = null, bestDiff = Infinity;
+  for (const dm of [-1, 0, 1]){
+    const t = Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + dm, day, hour, mi);
+    const diff = Math.abs(t - anchorMs);
+    if (diff < bestDiff){ bestDiff = diff; best = t; }
+  }
+  return best;
+}
+
+// Splits one TAF report into its change groups and marks which ones the
+// flight actually flies into at `atMs`: the base group (the header's own
+// conditions, or the FM/BECMG that has superseded them) in force at that
+// instant, plus any TEMPO/PROB window that also covers it.
+function tafChunks(text, atMs){
+  const hdr = text.match(RE_TAF_HDR);
+  if (!hdr || atMs == null) return null;
+  const validFrom = resolveDH(+hdr[1], +hdr[2], 0, atMs);
+  const validTo = resolveDH(+hdr[3], +hdr[4], 0, atMs);
+
+  RE_CHG.lastIndex = 0;
+  const toks = [];
+  let m;
+  while ((m = RE_CHG.exec(text))){
+    const isFm = m[1].startsWith('FM');
+    const tok = { index: m.index, base: isFm || m[1] === 'BECMG', from: null, to: null };
+    if (isFm) tok.from = resolveDH(+m[2], +m[3], +m[4], atMs);
+    else {
+      const w = text.slice(m.index, m.index + 40).match(RE_WIN);
+      if (w){ tok.from = resolveDH(+w[1], +w[2], 0, atMs); tok.to = resolveDH(+w[3], +w[4], 0, atMs); }
+    }
+    toks.push(tok);
+  }
+
+  const chunks = [{ text: text.slice(0, toks.length ? toks[0].index : text.length),
+                    base: true, from: validFrom, to: null }];
+  toks.forEach((t, i) => {
+    const end = i + 1 < toks.length ? toks[i + 1].index : text.length;
+    chunks.push({ text: text.slice(t.index, end), base: t.base,
+                  from: t.from ?? validFrom, to: t.to });
+  });
+
+  // Base groups chain from the tail: each is in force until the next base
+  // group's own start, or the TAF's end. A TEMPO/PROB keeps the window
+  // printed on its own line — it does not split the base group it sits in.
+  let nextBase = validTo;
+  for (let i = chunks.length - 1; i >= 0; i--){
+    const c = chunks[i];
+    if (c.base){ c.to = nextBase; nextBase = c.from; }
+  }
+  for (const c of chunks) c.active = c.from != null && c.to != null && atMs >= c.from && atMs < c.to;
+  return chunks;
+}
+
 function renderWx(){
   const list = PLAN.wx.airports;
   if (!list.length){
@@ -1705,6 +1817,15 @@ function renderWx(){
     `<div class="card flush"><div class="ttl">${title}${note ? `<em>${esc(note)}</em>` : ''}</div>`
     + body + '</div>';
   const reports = arr => arr.map(t => `<pre class="rep">${esc(spaced(t))}</pre>`).join('');
+  const tgt = tafTarget(a, flightWindow());
+  const tafReports = arr => arr.map(t => {
+    const disp = spaced(t), chunks = tgt && tafChunks(disp, tgt.ms);
+    if (!chunks) return `<pre class="rep">${esc(disp)}</pre>`;
+    return `<pre class="rep">` + chunks.map(c =>
+      c.active ? `<mark class="tafnow">${esc(c.text)}</mark>` : esc(c.text)).join('') + '</pre>';
+  }).join('');
+  const tafNote = tgt && (tgt.label === 'mid' ? `flight's midpoint · ${hhmmZ(tgt.ms)}`
+                                              : `at ${tgt.label} · ${hhmmZ(tgt.ms)}`);
   const item = n =>
     `<div class="ntm"><span class="id">${esc(n.id)}</span>`
     + (n.from ? `<span class="val">${esc(stamp(n.from))} → ${esc(stamp(n.to || '?'))}`
@@ -1720,7 +1841,7 @@ function renderWx(){
         + '</div>';
 
   if (a.metar.length) h += card('METAR', reports(a.metar));
-  if (a.taf.length)   h += card('TAF', reports(a.taf));
+  if (a.taf.length)   h += card('TAF', tafReports(a.taf), tafNote);
   if (a.notams.length){
     const shown = wxAll ? a.notams : a.notams.slice(0, NTM_FIRST);
     h += card('NOTAM', shown.map(item).join('')
