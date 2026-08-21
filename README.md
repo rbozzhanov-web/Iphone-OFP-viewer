@@ -227,17 +227,21 @@ before acting on any of it.
 The full-page sheets in the package — wind components, tropopause and MORA
 profile along the route, and the significant weather charts with the route drawn
 on them. The images are pulled straight out of the PDF, so nothing is re-rendered
-or re-compressed. **Pinch** sizes the sheet and a drag moves about it, with the
-app around it held still; **two taps** go in on what is under them and back out
-to the whole sheet; **Fit** puts it back from the toolbar. The sheet is held at
-its edges rather than let go into the page, and a wheel or a trackpad does the
-same on a computer.
+or re-compressed.
 
-**One tap puts the app away** and gives the sheet the screen — nine tenths of it
-in portrait, near enough all of it sideways. What stays is the row that pages
-between the charts and puts the size back: a sheet is read against its
-neighbours, and coming back out to reach Next would be a poor trade for the forty
-points it costs. A tap again brings the app back, as does leaving the tab.
+The tab holds a picture of each of them and claims nothing: it scrolls and it
+turns like every other tab. That is the point of it — a sheet that answers to
+fingers cannot sit in a tab that is turned by one, and while it did, a finger
+drawn sideways across it moved the sheet instead of the page, so the tab could
+not be left the way the others are.
+
+**Tap one to open it.** The viewer is over the top of everything and has the
+fingers to itself: **pinch** sizes the sheet and a drag moves about it, **two
+taps** go in on what is under them and back out to the whole sheet, **Fit** puts
+it back and **Prev / Next** page between the four, because a sheet is read
+against its neighbours. **Close**, or Escape, leaves. The sheet is held at its
+edges rather than let go into the page, and a wheel or a trackpad does the same
+on a computer.
 
 ### ICAO
 

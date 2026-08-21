@@ -346,32 +346,42 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
      the phone in the first place. */
   .chartnav{padding:7px 12px}
   .chartnav button{min-height:32px;padding:6px 13px}
-  .chartbox{height:calc(100vh - 138px);min-height:170px}
   .foot{margin-top:10px}
 }
-@supports(height:100dvh){
-  @media(orientation:landscape) and (max-height:520px){
-    .chartbox{height:calc(100dvh - 138px)}
-  }
+/* ---- the tab shows what there is; the viewer shows one ----
+   A sheet that takes the gestures cannot sit in a tab that is turned by one. It
+   used to fill this tab, and a finger drawn sideways across it — which is most
+   of the screen — moved the sheet instead of the page, so the tab could not be
+   left the way every other tab is left.
+   So the tab holds pictures of the charts and claims nothing: it scrolls and it
+   turns like any other. The sheet that answers to fingers lives in a viewer over
+   the top of everything, entered by tapping a chart and left by Close. */
+/* The picture is held by a length, not by a percentage of its slot: a percentage
+   height on an image centred in a grid does not resolve against the row, and the
+   sheet came out taller than the box and cut off at the foot. One custom
+   property so the slot and the picture cannot say different things. */
+.chartcard{cursor:pointer;--ph:210px}
+.chartcard .preview{height:var(--ph);background:#fff;display:grid;place-items:center;
+  border-radius:0 0 calc(var(--r-card) - 1px) calc(var(--r-card) - 1px);overflow:hidden}
+.chartcard .preview img{display:block;width:auto;height:auto;
+  max-width:100%;max-height:var(--ph)}
+.chartcard .preview p{margin:0;color:#5d6b7a;font-size:12.5px}
+@media(hover:hover){.chartcard:hover{border-color:color-mix(in srgb,var(--acc) 45%,transparent)}}
+.chartcard:active{transform:scale(.995)}
+
+/* Shorter previews on a screen half the height, declared here rather than up in
+   the landscape block: that block is set out before this section, and the base
+   height below it would undo anything it said. */
+@media(orientation:landscape) and (max-height:520px){
+  .chartcard{--ph:150px}
 }
 
-/* ---- the sheet, and nothing else ----
-   A tap on a chart puts the app away: header, tabs and the note under the card
-   go, and the sheet takes the screen. What stays is the row that pages between
-   the four of them and puts the size back — a chart is looked at against its
-   neighbours, and having to come back out to reach Next would be a poor trade
-   for the forty points it costs.
-
-   A tap again brings the app back, as it does in anything else that shows a
-   picture full screen. */
-.sheetfull .bar,.sheetfull .foot{display:none}
-.sheetfull main{padding:0;max-width:none}
-.sheetfull #p-charts{display:flex;flex-direction:column;height:100vh}
-@supports(height:100dvh){.sheetfull #p-charts{height:100dvh}}
-.sheetfull #p-charts .card{display:flex;flex-direction:column;flex:1;min-height:0;
-  margin:0;border:0;border-radius:0;box-shadow:none}
-.sheetfull .chartnav{padding-top:max(env(safe-area-inset-top,0px),8px)}
-.sheetfull .chartbox{flex:1;height:auto;max-height:none;min-height:0;border-radius:0}
+.viewer{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
+  background:var(--panel)}
+.viewer.hide{display:none}
+.viewer .chartnav{padding-top:max(env(safe-area-inset-top,0px),8px);
+  border-bottom:.5px solid var(--line);background:var(--hdr)}
+.viewer .chartbox{flex:1;min-height:0;height:auto;max-height:none;border-radius:0}
 body.locked{overflow:hidden}
 
 .empty{padding:26px 14px;text-align:center;color:var(--dim);font-size:13.5px;line-height:1.6}
@@ -428,6 +438,20 @@ body.locked{overflow:hidden}
     <section class="panel" id="p-charts" hidden></section>
     <section class="panel" id="p-fpl" hidden></section>
   </main>
+
+  <!-- Outside main on purpose. Main is what slides when a tab is turned, and it
+       carries will-change:transform, which would make it the containing block of
+       anything fixed inside it — the viewer would slide with the page it covers. -->
+  <div class="viewer hide" id="cView">
+    <div class="chartnav">
+      <button type="button" class="ghost sm" id="cPrev">Prev</button>
+      <span class="who" id="cWho"></span>
+      <button type="button" class="ghost sm" id="cFit">Fit</button>
+      <button type="button" class="ghost sm" id="cNext">Next</button>
+      <button type="button" class="ghost sm" id="cClose">Close</button>
+    </div>
+    <div class="chartbox" id="cBox"></div>
+  </div>
 </div>
 
 <script>/* pdfmini — the OFP companion's PDF engine, reading only: text with its
@@ -1713,29 +1737,71 @@ function renderWx(){
 let CHARTS = [], chartAt = 0;
 
 function renderCharts(){
+  const panel = $('#p-charts');
   if (!CHARTS.length){
-    $('#p-charts').innerHTML = '<div class="card"><p class="empty">No full-page charts in '
+    panel.innerHTML = '<div class="card"><p class="empty">No full-page charts in '
       + 'this package.</p></div>';
     return;
   }
-  $('#p-charts').innerHTML =
-      '<div class="card flush"><div class="chartnav">'
-    + '<button type="button" class="ghost sm" id="cPrev">Prev</button>'
-    + '<span class="who" id="cWho"></span>'
-    + '<button type="button" class="ghost sm" id="cFit">Fit</button>'
-    + '<button type="button" class="ghost sm" id="cNext">Next</button>'
-    + '</div><div class="chartbox" id="cBox"><p>Loading…</p></div></div>'
+  panel.innerHTML = CHARTS.map((c, i) =>
+      `<div class="card flush chartcard" data-chart="${i}">`
+    + `<div class="ttl">Chart ${i + 1} of ${CHARTS.length}<em>page ${c.page + 1}</em></div>`
+    + `<div class="preview"><p>Decoding…</p></div></div>`).join('')
     + '<p class="foot">The wind components, the tropopause and MORA profile, and the significant '
-    + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Pinch</b> to size '
-    + 'the sheet and drag to move about it — the app around it holds still. <b>Two taps</b> go in '
-    + 'on what is under them, and back to the whole sheet. <b>One tap</b> puts the app away and '
-    + 'gives the sheet the screen.</p>';
-  $('#cPrev').onclick = () => { if (chartAt > 0){ chartAt--; paintChart(); } };
-  $('#cNext').onclick = () => { if (chartAt < CHARTS.length - 1){ chartAt++; paintChart(); } };
-  $('#cFit').onclick = () => fitChart();
+    + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Tap one</b> to '
+    + 'open it: pinch to size the sheet, drag to move about it, two taps to go in on what is '
+    + 'under them and back out to the whole sheet.</p>';
+  panel.querySelectorAll('.chartcard').forEach(card => {
+    card.onclick = () => openViewer(+card.dataset.chart);
+  });
+  decodePreviews();
+}
+
+/* Decoded one after another rather than all at once. A sheet is a bitmap of a
+   million-odd pixels and unpacking it holds the thread; taken in turn, with a
+   breath between, the first is on screen while the rest are still coming and
+   the tab can be scrolled and left throughout. A run is abandoned if the plan
+   changes under it. */
+let previewRun = 0;
+async function decodePreviews(){
+  const mine = ++previewRun;
+  for (let i = 0; i < CHARTS.length; i++){
+    const c = CHARTS[i];
+    if (!c.url){
+      await new Promise(r => setTimeout(r, 0));
+      if (mine !== previewRun) return;
+      try { c.url = await chartUrl(DOC, DOC.pages()[c.page], c.key); }
+      catch (e){ c.bad = e.message; }
+    }
+    if (mine !== previewRun) return;
+    const slot = document.querySelector(`.chartcard[data-chart="${i}"] .preview`);
+    if (!slot) return;                              // the tab was left
+    slot.innerHTML = c.url
+      ? `<img src="${c.url}" alt="Chart on page ${c.page + 1}">`
+      : `<p>Could not read this chart: ${esc(c.bad || 'unknown')}</p>`;
+  }
+}
+
+/* ---- the viewer ----
+   One sheet, over the top of everything, with the fingers to itself. Opened by
+   tapping a chart and left by Close or Escape; Prev and Next stay because a
+   sheet is read against its neighbours. */
+function openViewer(i){
+  if (!CHARTS[i]) return;
+  chartAt = i;
+  $('#cView').classList.remove('hide');
+  document.body.classList.add('locked');
   bindPinch($('#cBox'));
   paintChart();
 }
+function closeViewer(){
+  $('#cView').classList.add('hide');
+  document.body.classList.remove('locked');
+}
+$('#cPrev').onclick = () => { if (chartAt > 0){ chartAt--; paintChart(); } };
+$('#cNext').onclick = () => { if (chartAt < CHARTS.length - 1){ chartAt++; paintChart(); } };
+$('#cFit').onclick = () => fitChart();
+$('#cClose').onclick = closeViewer;
 
 async function paintChart(){
   const c = CHARTS[chartAt], box = $('#cBox');
@@ -1802,7 +1868,7 @@ function bindPinch(box){
   if (!box || box.dataset.pinch) return;
   box.dataset.pinch = '1';
   const pts = new Map();
-  let prev = null, tapAt = 0, moved = 0, waiting = null;
+  let prev = null, tapAt = 0, moved = 0;
 
   // One finger reports where it is; two report where they are between them and
   // how far apart, which is all a pinch is.
@@ -1840,19 +1906,14 @@ function bindPinch(box){
     prev = pts.size ? pose() : null;               // the finger left behind takes over
     if (pts.size || moved > 12 || !chartImg()) return;
     const now = Date.now(), r = box.getBoundingClientRect();
-    // One tap puts the app away, two go in on what is under them. A single tap
-    // therefore waits out the window in which a second could still arrive; the
-    // second cancels it, which is why it is a timer and not an else.
+    // Two taps go in on what is under them and back out to the whole sheet. One
+    // does nothing: the viewer is already the screen, and a stray tap that shut
+    // it would cost the zoom it took to get there.
     if (now - tapAt < 320){
       tapAt = 0;
-      clearTimeout(waiting); waiting = null;
       if (VIEW.scale > VIEW.fit * 1.05) fitChart();
       else zoomAt(3, e.clientX - r.left, e.clientY - r.top);
-    } else {
-      tapAt = now;
-      clearTimeout(waiting);
-      waiting = setTimeout(() => { waiting = null; sheetOnly(); }, 330);
-    }
+    } else tapAt = now;
   };
   box.addEventListener('pointerup', up);
   box.addEventListener('pointercancel', up);
@@ -1865,22 +1926,10 @@ function bindPinch(box){
   }, { passive: false });
 }
 
-/* The app steps aside for the sheet, and comes back. The sheet is fitted again
-   on the way in and out: the box it is measured against has just changed size,
-   and a picture left at the old fit hangs off an edge of the new one. */
-function sheetOnly(on){
-  const app = $('#appView');
-  if (!app || !chartImg()) return;
-  const want = on === undefined ? !app.classList.contains('sheetfull') : !!on;
-  app.classList.toggle('sheetfull', want);
-  document.body.classList.toggle('locked', want);
-  requestAnimationFrame(() => fitChart());
-}
-
 // A turn of the phone changes the box under the sheet, so the sheet is fitted to
 // it again rather than left hanging off an edge.
 addEventListener('resize', () => { if (chartImg()) fitChart(); });
-addEventListener('keydown', e => { if (e.key === 'Escape') sheetOnly(false); });
+addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(); });
 
 
 /* ================= the ICAO plan ================= */
@@ -1932,7 +1981,7 @@ function showTab(name, from){
   // The strip scrolls sideways and the tab swiped to may be off the end of it.
   const btn = document.querySelector(`[data-tab="${name}"]`);
   if (btn) btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-  if (name !== 'charts') sheetOnly(false);
+  closeViewer();
   if (name === 'charts') renderCharts();
   scrollTo(0, 0);
 }
