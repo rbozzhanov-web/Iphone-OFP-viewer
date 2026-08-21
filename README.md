@@ -95,6 +95,21 @@ is sized and moved on its own while the app around it holds still, and two taps
 go in on what is under them and back to the whole sheet. Everywhere else there is
 nothing to zoom and the system's own pinch is left alone.
 
+## On its side
+
+A phone turned sideways has four hundred points of height instead of eight
+hundred, and chrome sized for the other shape takes two fifths of it. So in
+landscape the bar is rebuilt: the clearance it keeps above itself in portrait is
+for the island, which in landscape is at the side and wants none — that goes
+first. Then the strip of tabs and the document's name, each of which takes a
+whole row in portrait, share one, the name at the far end where it is out of the
+way of the tab being reached for and still there to be read.
+
+That is a quarter of the screen for the chrome instead of two fifths, and the
+whole of a wind-component sheet on one screen without scrolling. Nothing is
+dropped or shortened — an iPad on its side has the height for the ordinary
+layout and keeps it.
+
 ## How it looks
 
 The chrome is glass. The plan runs under the header rather than stopping at it,

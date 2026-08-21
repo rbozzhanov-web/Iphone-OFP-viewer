@@ -296,6 +296,51 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
   -webkit-user-select:none;user-select:none;-webkit-user-drag:none}
 .chartbox p{margin:0;padding:50px 14px;color:#5d6b7a;font-size:13px;text-align:center}
 
+/* ================= the phone on its side =================
+   Four hundred points of height instead of eight hundred, and the chrome sized
+   for the other one takes two fifths of it. Two things give it back.
+
+   The clearance the portrait bar keeps above itself is for the island, and in
+   landscape the island is at the side — the top inset is nothing and the
+   allowance for glass that reaches lower than it admits is dead space. It goes.
+
+   Then every rhythm tightens by a few points: the buttons, the tab capsules, the
+   two lines of type. Nothing is dropped — the document still names itself in
+   full — it is only set closer, which is what a screen this shape asks for.
+
+   Held to phones: an iPad on its side has the height for the ordinary layout. */
+@media(orientation:landscape) and (max-height:520px){
+  .bar{padding-top:max(env(safe-area-inset-top,0px),4px)}
+  .bartop{gap:8px;padding-top:4px;padding-bottom:2px}
+  .barbtn{width:34px;height:34px}
+  .barbtn svg{width:17px;height:17px}
+  .ident b{font-size:14.5px}
+  /* The strip takes half the width and the document's name takes a whole row of
+     its own; side by side they take one. The name goes to the far end, where it
+     is out of the way of the tab being reached for and still there to be read. */
+  .bar{display:grid;grid-template-columns:minmax(0,auto) 1fr;
+    grid-template-areas:"top top" "tabs sub";align-items:center}
+  .bartop{grid-area:top}
+  .tabs{grid-area:tabs;gap:2px;padding-bottom:4px}
+  .tabs button{min-height:30px;padding:5px 12px;font-size:12.5px}
+  .barsub{grid-area:sub;text-align:right;font-size:10.5px;white-space:nowrap;
+    padding:0 max(12px,env(safe-area-inset-right)) 4px 10px}
+  main{padding-top:8px}
+  .card{margin-bottom:9px}
+
+  /* What the header gives back goes to the sheet, which is the reason to turn
+     the phone in the first place. */
+  .chartnav{padding:7px 12px}
+  .chartnav button{min-height:32px;padding:6px 13px}
+  .chartbox{height:calc(100vh - 138px);min-height:170px}
+  .foot{margin-top:10px}
+}
+@supports(height:100dvh){
+  @media(orientation:landscape) and (max-height:520px){
+    .chartbox{height:calc(100dvh - 138px)}
+  }
+}
+
 .empty{padding:26px 14px;text-align:center;color:var(--dim);font-size:13.5px;line-height:1.6}
 .foot{margin:14px 2px 0;font-size:11.5px;line-height:1.7;color:var(--fld)}
 .foot b{color:var(--dim);font-weight:600}
