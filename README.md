@@ -71,6 +71,19 @@ and the copy kept for the next launch. The app then opens empty.
 
 ---
 
+## Moving about it
+
+The five tabs are turned by **swiping sideways** across the page, the way the
+phone's own apps turn theirs, or by tapping one in the strip. A swipe that begins
+on something with its own sideways travel — a chart at full size, a line set
+wider than the screen — belongs to that thing and scrolls it instead. Two fingers
+are never a swipe: they are the system's zoom.
+
+**Pinch to zoom** works everywhere, on any tab, because nothing on the page
+claims it. The page never asks to be unscalable and no element takes the gesture
+for itself, so it is iOS's own zoom, with its own rubber-banding and its own
+double tap. Arrow keys turn the tabs on a computer.
+
 ## What is on the five tabs
 
 ### Flight
@@ -161,10 +174,9 @@ before acting on any of it.
 The full-page sheets in the package — wind components, tropopause and MORA
 profile along the route, and the significant weather charts with the route drawn
 on them. The images are pulled straight out of the PDF, so nothing is re-rendered
-or re-compressed. **Pinch** to zoom and drag to move about the sheet, **double
-tap** to go in and back out, **Fit** to put the whole sheet back on the screen.
-The sheet is held at its edges rather than let go into the page, and a wheel or a
-trackpad does the same on a computer.
+or re-compressed. Pinch to zoom as anywhere else; **Full size** stands the sheet
+at the size it was drawn and scrolls under it, which is the quickest way to read
+one without zooming at all.
 
 ### ICAO
 

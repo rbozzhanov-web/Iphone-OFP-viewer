@@ -123,6 +123,11 @@ main{max-width:760px;margin:0 auto;
   padding:12px max(12px,env(safe-area-inset-right)) calc(34px + env(safe-area-inset-bottom))
           max(12px,env(safe-area-inset-left))}
 .panel[hidden]{display:none}
+/* The tab comes in from the side it was swiped from. Short enough not to be
+   waited on, and off entirely for anyone who has asked for less movement. */
+.panel.slide{animation:tabin .2s cubic-bezier(.32,.72,0,1)}
+@keyframes tabin{from{opacity:0;transform:translate3d(var(--from,0),0,0)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.panel.slide{animation:none}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
   padding:13px;margin-bottom:11px}
 .card.flush{padding:0;overflow:hidden}
@@ -234,15 +239,17 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
 /* ================= charts ================= */
 .chartnav{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--line)}
 .chartnav .who{flex:1;font:11.5px/1.3 ui-monospace,Menlo,monospace;color:var(--dim)}
-/* The sheet is moved by the fingers on it, so the box owns its gestures outright
-   — touch-action:none — and the picture is placed by a transform rather than by
-   the box's own scrolling. A definite height is part of that: the fit, the
-   clamp and the centring are all worked out against it. */
-.chartbox{position:relative;overflow:hidden;background:#fff;touch-action:none;
-  height:calc(100vh - 270px);min-height:260px}
-@supports(height:100dvh){.chartbox{height:calc(100dvh - 270px)}}
-.chartbox img{position:absolute;top:0;left:0;transform-origin:0 0;
-  -webkit-user-select:none;user-select:none;-webkit-user-drag:none;max-width:none}
+/* Nothing here claims the pinch. The page never sets user-scalable=no and the
+   box never sets touch-action, so two fingers are iOS's own zoom — with its
+   rubber-banding, its momentum and its double-tap — over the chart as over
+   anything else. The box only fits the sheet to the screen, or lets it stand at
+   full size and scrolls under it. */
+.chartbox{overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  background:#fff;text-align:center;
+  max-height:calc(100vh - 270px);min-height:200px}
+@supports(max-height:100dvh){.chartbox{max-height:calc(100dvh - 270px)}}
+.chartbox img{display:block;margin:0 auto;max-width:100%;height:auto}
+.chartbox.full img{max-width:none;width:auto}
 .chartbox p{margin:0;padding:50px 14px;color:#5d6b7a;font-size:13px;text-align:center}
 
 .empty{padding:26px 14px;text-align:center;color:var(--dim);font-size:13.5px;line-height:1.6}
@@ -1583,17 +1590,19 @@ function renderCharts(){
       '<div class="card flush"><div class="chartnav">'
     + '<button type="button" class="ghost sm" id="cPrev">Prev</button>'
     + '<span class="who" id="cWho"></span>'
-    + '<button type="button" class="ghost sm" id="cFit">Fit</button>'
+    + '<button type="button" class="ghost sm" id="cSize">Full size</button>'
     + '<button type="button" class="ghost sm" id="cNext">Next</button>'
     + '</div><div class="chartbox" id="cBox"><p>Loading…</p></div></div>'
     + '<p class="foot">The wind components, the tropopause and MORA profile, and the significant '
-    + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Pinch</b> to zoom '
-    + 'and drag to move about the sheet; <b>double tap</b> goes in and back out, and <b>Fit</b> '
-    + 'puts the whole sheet back on the screen.</p>';
+    + 'weather sheets — pulled straight out of the package, not re-rendered. <b>Pinch to zoom</b>, '
+    + 'as anywhere else on the phone. <b>Full size</b> stands the sheet at the size it was drawn '
+    + 'and scrolls under it.</p>';
   $('#cPrev').onclick = () => { if (chartAt > 0){ chartAt--; paintChart(); } };
   $('#cNext').onclick = () => { if (chartAt < CHARTS.length - 1){ chartAt++; paintChart(); } };
-  $('#cFit').onclick = () => fitChart();
-  bindPinch($('#cBox'));
+  $('#cSize').onclick = () => {
+    const on = $('#cBox').classList.toggle('full');
+    $('#cSize').textContent = on ? 'Fit' : 'Full size';
+  };
   paintChart();
 }
 
@@ -1603,123 +1612,17 @@ async function paintChart(){
   $('#cWho').textContent = `${chartAt + 1} of ${CHARTS.length} · page ${c.page + 1}`;
   $('#cPrev').disabled = chartAt === 0;
   $('#cNext').disabled = chartAt === CHARTS.length - 1;
+  box.classList.remove('full');
+  $('#cSize').textContent = 'Full size';
   if (!c.url){
     box.innerHTML = '<p>Decoding…</p>';
     try { c.url = await chartUrl(DOC, DOC.pages()[c.page], c.key); }
     catch (e){ box.innerHTML = `<p>Could not read this chart: ${esc(e.message)}</p>`; return; }
     if (CHARTS[chartAt] !== c) return;              // paged on while decoding
   }
-  box.innerHTML = `<img src="${c.url}" alt="Chart on page ${c.page + 1}" draggable="false">`;
-  const img = box.querySelector('img');
-  // A cached image can be complete before the load event would ever fire.
-  if (img.complete && img.naturalWidth) fitChart(); else img.onload = () => fitChart();
+  box.innerHTML = `<img src="${c.url}" alt="Chart on page ${c.page + 1}">`;
+  box.scrollTop = box.scrollLeft = 0;
 }
-
-/* ---- moving about a sheet ----
-   A chart is a picture to be handled, not a page to be scrolled: two fingers
-   size it, one moves it, two taps go in and back out. It is done on a transform
-   rather than by scrolling the box, so the same arithmetic serves the pinch, the
-   drag and the double tap, and the sheet can be held still at the edges instead
-   of being let go into the surrounding page. */
-const VIEW = { scale: 1, fit: 1, tx: 0, ty: 0, w: 0, h: 0 };
-const MAXZ = 12;                       // times the fitted size; a chart is a big bitmap
-
-function chartImg(){ const b = $('#cBox'); return b && b.querySelector('img'); }
-
-function fitChart(){
-  const box = $('#cBox'), img = chartImg();
-  if (!box || !img || !img.naturalWidth) return;
-  if (!box.clientWidth || !box.clientHeight) return;   // the tab is not on screen
-  VIEW.w = img.naturalWidth; VIEW.h = img.naturalHeight;
-  VIEW.fit = Math.min(box.clientWidth / VIEW.w, box.clientHeight / VIEW.h);
-  VIEW.scale = VIEW.fit;
-  applyView();
-}
-// Held inside the box while it is larger than the box, centred while it is not.
-function applyView(){
-  const box = $('#cBox'), img = chartImg();
-  if (!box || !img) return;
-  const bw = box.clientWidth, bh = box.clientHeight;
-  const w = VIEW.w * VIEW.scale, h = VIEW.h * VIEW.scale;
-  VIEW.tx = w <= bw ? (bw - w) / 2 : Math.min(0, Math.max(bw - w, VIEW.tx));
-  VIEW.ty = h <= bh ? (bh - h) / 2 : Math.min(0, Math.max(bh - h, VIEW.ty));
-  img.style.transform = `translate(${VIEW.tx}px,${VIEW.ty}px) scale(${VIEW.scale})`;
-  const fit = $('#cFit');
-  if (fit) fit.disabled = VIEW.scale <= VIEW.fit * 1.01;
-}
-// Scale about a point of the box, so the sheet grows out of what is under the
-// fingers rather than out of its own corner.
-function zoomAt(k, px, py){
-  const s = Math.max(VIEW.fit, Math.min(VIEW.fit * MAXZ, VIEW.scale * k));
-  const f = s / VIEW.scale;
-  VIEW.tx = px - (px - VIEW.tx) * f;
-  VIEW.ty = py - (py - VIEW.ty) * f;
-  VIEW.scale = s;
-  applyView();
-}
-
-function bindPinch(box){
-  if (!box || box.dataset.pinch) return;
-  box.dataset.pinch = '1';
-  const pts = new Map();
-  let prev = null, tapAt = 0, moved = 0;
-
-  // One finger reports where it is; two report where they are between them and
-  // how far apart, which is all a pinch is.
-  const pose = () => {
-    const a = [...pts.values()], r = box.getBoundingClientRect();
-    if (a.length >= 2){
-      const mx = (a[0].x + a[1].x) / 2, my = (a[0].y + a[1].y) / 2;
-      return { d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), x: mx - r.left, y: my - r.top };
-    }
-    return { d: 0, x: a[0].x - r.left, y: a[0].y - r.top };
-  };
-
-  box.addEventListener('pointerdown', e => {
-    if (!chartImg()) return;
-    box.setPointerCapture(e.pointerId);
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    prev = pose();
-    if (pts.size === 1) moved = 0;
-  });
-  box.addEventListener('pointermove', e => {
-    if (!pts.has(e.pointerId)) return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const p = pose();
-    if (prev){
-      if (p.d && prev.d) zoomAt(p.d / prev.d, p.x, p.y);
-      VIEW.tx += p.x - prev.x; VIEW.ty += p.y - prev.y;
-      moved += Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y);
-      applyView();
-    }
-    prev = p;
-  });
-  const up = e => {
-    if (!pts.has(e.pointerId)) return;
-    pts.delete(e.pointerId);
-    prev = pts.size ? pose() : null;               // the finger left behind takes over
-    if (pts.size || moved > 12 || !chartImg()) return;
-    const now = Date.now(), r = box.getBoundingClientRect();
-    if (now - tapAt < 320){
-      tapAt = 0;
-      if (VIEW.scale > VIEW.fit * 1.05) fitChart();
-      else zoomAt(3, e.clientX - r.left, e.clientY - r.top);
-    } else tapAt = now;
-  };
-  box.addEventListener('pointerup', up);
-  box.addEventListener('pointercancel', up);
-  // A trackpad and a mouse wheel, for reading the same chart on a computer.
-  box.addEventListener('wheel', e => {
-    if (!chartImg()) return;
-    e.preventDefault();
-    const r = box.getBoundingClientRect();
-    zoomAt(Math.exp(-e.deltaY / 320), e.clientX - r.left, e.clientY - r.top);
-  }, { passive: false });
-}
-
-// A turn of the phone changes the box under the sheet, so the sheet is fitted to
-// it again rather than left hanging off an edge.
-addEventListener('resize', () => { if (chartImg()) fitChart(); });
 
 /* ================= the ICAO plan ================= */
 function renderFpl(){
@@ -1752,13 +1655,20 @@ function renderFpl(){
 /* ================= tabs ================= */
 const PANELS = ['flight', 'route', 'wx', 'charts', 'fpl'];
 let tabAt = 'flight';
-function showTab(name){
+function showTab(name, from){
   tabAt = name;
   for (const t of PANELS){
     $('#p-' + t).hidden = t !== name;
     const b = document.querySelector(`[data-tab="${t}"]`);
     if (b) b.setAttribute('aria-selected', String(t === name));
   }
+  const panel = $('#p-' + name);
+  // Which way the tab came in from, so the eye is told where it went.
+  panel.style.setProperty('--from', (from || 0) > 0 ? '14px' : '-14px');
+  if (from){ panel.classList.remove('slide'); void panel.offsetWidth; panel.classList.add('slide'); }
+  // The strip scrolls sideways and the tab swiped to may be off the end of it.
+  const btn = document.querySelector(`[data-tab="${name}"]`);
+  if (btn) btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   if (name === 'charts') renderCharts();
   scrollTo(0, 0);
 }
@@ -1766,6 +1676,52 @@ $('#tabs').onclick = e => {
   const b = e.target.closest('[data-tab]');
   if (b) showTab(b.dataset.tab);
 };
+
+/* ---- sideways for the next tab ----
+   The tabs are five and the strip does not hold them all, so the page is turned
+   the way the phone's own apps turn theirs. Only the reading area answers to it,
+   never the strip itself, and only one finger: two are the system's zoom and
+   this must not be mistaken for the start of one. */
+function stepTab(dir){
+  const i = PANELS.indexOf(tabAt) + dir;
+  if (i < 0 || i >= PANELS.length) return;
+  showTab(PANELS[i], dir);
+}
+// A gesture that begins on something with its own sideways travel — a chart at
+// full size, a line of NOTAM set wider than the screen — belongs to that thing.
+function ownsSideways(el){
+  for (let n = el; n && n !== document.body; n = n.parentElement){
+    const ox = getComputedStyle(n).overflowX;
+    if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 4) return true;
+  }
+  return false;
+}
+(() => {
+  const area = document.querySelector('main');
+  if (!area) return;
+  let sx = 0, sy = 0, live = false;
+  area.addEventListener('touchstart', e => {
+    live = e.touches.length === 1 && !ownsSideways(e.target);
+    if (live){ sx = e.touches[0].clientX; sy = e.touches[0].clientY; }
+  }, { passive: true });
+  area.addEventListener('touchmove', e => { if (e.touches.length > 1) live = false; }, { passive: true });
+  area.addEventListener('touchend', e => {
+    if (!live) return;
+    live = false;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    // Far enough across, and more across than down, or a scroll that wandered
+    // would turn the page under the thumb.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    stepTab(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  // The same on a keyboard, for reading the plan on a computer.
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.altKey || e.ctrlKey || !PLAN) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test((e.target || {}).tagName || '')) return;
+    if (e.key === 'ArrowRight') stepTab(1);
+    if (e.key === 'ArrowLeft') stepTab(-1);
+  });
+})();
 
 function render(){
   for (const c of CHARTS) if (c.url) URL.revokeObjectURL(c.url);
