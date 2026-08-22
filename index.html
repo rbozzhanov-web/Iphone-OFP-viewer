@@ -276,6 +276,19 @@ main{will-change:transform}
 select{width:100%;background:var(--panel2);border:.5px solid var(--line);color:var(--txt);
   border-radius:var(--r-in);padding:12px 12px;
   font:700 15px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
+/* A device preference, not a per-plan one, so it reads as a pill rather than
+   as part of the aerodrome it happens to be sitting under — tinted the same
+   way a pressed chip is, with a small dot standing in for the switch a
+   plain button has no room to draw. */
+#wxHiBtn{display:flex;align-items:center;gap:8px;width:100%;margin-top:12px;
+  background:var(--panel2);border:.5px solid var(--line);color:var(--dim);
+  border-radius:var(--r-pill);padding:10px 14px;min-height:36px;
+  font:700 12.5px/1.3 -apple-system,system-ui,sans-serif;letter-spacing:.2px;text-align:left}
+#wxHiBtn::before{content:"";width:9px;height:9px;border-radius:50%;flex:0 0 auto;
+  background:var(--line);transition:background .15s}
+#wxHiBtn[aria-pressed=true]{background:color-mix(in srgb,var(--acc) 16%,transparent);
+  border-color:color-mix(in srgb,var(--acc) 42%,transparent);color:var(--acc)}
+#wxHiBtn[aria-pressed=true]::before{background:var(--acc)}
 pre{margin:0;padding:12px 13px;overflow-x:auto;-webkit-overflow-scrolling:touch;
   font:13px/1.62 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
 pre.rep{color:var(--txt)}
@@ -1695,6 +1708,12 @@ function renderRoute(){
 
 /* ================= weather ================= */
 let wxAt = 0, wxAll = false;
+// A device-wide preference, not a per-plan one — it says how the crew wants
+// the card read, not something the loaded plan has an opinion on, so it
+// lives beside the theme (same key convention, same storage) rather than in
+// the plan's own saved state.
+let WXHI = true;
+try { WXHI = localStorage.getItem('etofill:wxhi') !== '0'; } catch(e){}
 const stamp = s => {
   const m = String(s).match(/^(\d{2}[A-Z]{3})(\d{4})(?:\s+(\d{4}))?$/);
   return m ? `${m[1]} ${m[2]}Z${m[3] ? ' ' + m[3] : ''}` : s;
@@ -1846,12 +1865,18 @@ function notamActive(n, atMs){
 
 /* ---- what a NOTAM is about ----
    Read off its own subject and text, not off any code the plan doesn't
-   carry: these packages print NOTAMs as free text, not the ICAO Q-line. The
+   carry: these packages print NOTAMs as free text, not the ICAO Q-line that
+   would otherwise classify them — Doc 8126's own Q-code marks the aerodrome
+   FA, the runway MR, the taxiway MT, and CLSD as the condition LC, but that
+   line never survives into the briefing. What does survive is Doc 8400's own
+   abbreviations for the same three things — RWY, TWY, AD — so matching on
+   those reads a NOTAM the way its Q-line would have, plural included: a
+   NOTAM naming more than one runway or taxiway prints RWYS or TWYS. The
    whole aerodrome shut outranks the runway — it is the more limiting of the
    two, and gets its own, louder mark rather than sharing the runway's; a
    NOTAM naming both the runway and the taxiway is coloured for the runway. */
-const RE_NTM_RWY  = /\bRUNWAY\b|\bRWY\b/;
-const RE_NTM_TWY  = /\bTAXIWAY\b|\bTWY\b/;
+const RE_NTM_RWY  = /\bRUNWAYS?\b|\bRWYS?\b/;
+const RE_NTM_TWY  = /\bTAXIWAYS?\b|\bTWYS?\b/;
 const RE_NTM_CLSD = /\b(?:AD|AERODROME|ARPT|AIRPORT)\s+CLOSED\b|\b(?:AD|AERODROME|ARPT)\s+CLSD\b/;
 function notamHazard(n){
   const t = `${n.subject || ''} ${n.text || ''}`.toUpperCase();
@@ -1887,7 +1912,7 @@ function renderWx(){
     `<div class="card flush"><div class="ttl">${title}${note ? `<em>${esc(note)}</em>` : ''}</div>`
     + body + '</div>';
   const reports = arr => arr.map(t => `<pre class="rep">${esc(spaced(t))}</pre>`).join('');
-  const tgt = wxTarget(a, flightWindow());
+  const tgt = WXHI ? wxTarget(a, flightWindow()) : null;
   const tafReports = arr => arr.map(t => {
     const disp = spaced(t), chunks = tgt && tafChunks(disp, tgt.ms);
     if (!chunks) return `<pre class="rep">${esc(disp)}</pre>`;
@@ -1898,7 +1923,7 @@ function renderWx(){
                                              : `at ${tgt.label} · ${hhmmZ(tgt.ms)}`);
   const item = n => {
     const now = tgt && notamActive(n, tgt.ms);
-    const hz = notamHazard(n);
+    const hz = WXHI ? notamHazard(n) : null;
     const cls = ['ntm', hz, now ? 'now' : ''].filter(Boolean).join(' ');
     return `<div class="${cls}"><span class="id">${esc(n.id)}</span>`
       + (n.from ? `<span class="val">${esc(stamp(n.from))} → ${esc(stamp(n.to || '?'))}`
@@ -1912,6 +1937,7 @@ function renderWx(){
         + `${a.role ? ' · ' + esc(a.role) : ''}</em></div>`
         + `<select id="wxSel" aria-label="Aerodrome">${sel}</select>`
         + (a.name ? `<div class="metaline">${esc([a.iata, a.name].filter(Boolean).join(' · '))}</div>` : '')
+        + `<button type="button" id="wxHiBtn" aria-pressed="${WXHI}">Highlight what applies now</button>`
         + '</div>';
 
   if (a.metar.length) h += card('METAR', reports(a.metar));
@@ -1934,6 +1960,11 @@ function renderWx(){
   $('#wxSel').onchange = e => pick(+e.target.value);
   const more = $('#wxMore');
   if (more) more.onclick = () => { wxAll = true; renderWx(); };
+  $('#wxHiBtn').onclick = () => {
+    WXHI = !WXHI;
+    try { localStorage.setItem('etofill:wxhi', WXHI ? '1' : '0'); } catch(e){}
+    renderWx();
+  };
 }
 
 /* ================= charts =================

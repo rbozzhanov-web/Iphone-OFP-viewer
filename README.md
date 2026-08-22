@@ -239,11 +239,18 @@ question.
 
 **What the NOTAM is about is marked too**, off its own words rather than any
 code the plan does not carry: the runway is edged and tinted in the same
-muted red an over-limit SR figure already uses, the taxiway in amber: a NOTAM
+muted red an over-limit SR figure already uses, the taxiway in amber — either
+in the plural, RWYS or TWYS, when the NOTAM names more than one — and a NOTAM
 naming both is marked for the runway, the more limiting of the two. The whole
 aerodrome closed outranks either and is the one NOTAM worth a solid fill —
 everywhere else on this page red is a tint or an outline, so a filled row
 reads at a glance as the one thing here that is not routine.
+
+**Highlight what applies now**, under the aerodrome dropdown, turns all three
+off at once for a crew that would rather read the reports plain. It is a
+device preference, kept the same way the light-or-dark choice is — set once,
+left as it is after that, and shared with the OFP companion on a phone
+carrying both.
 
 Everything here is as old as the document. Re-brief from the current source
 before acting on any of it.
