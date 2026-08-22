@@ -230,6 +230,21 @@ the window printed on their own line, alongside whichever of those governs at
 that moment. An aerodrome named for no role of its own, or a plan carrying no
 date of flight, gets no highlight — there is no instant here worth guessing at.
 
+**A NOTAM in force at that same instant is marked the same way**, a line lit
+along its trailing edge rather than reordered — the list stays in the order
+the package prints it. WIE and UFN are read as already in effect or open-
+ended, PERM as never-ending; the day and month a NOTAM carries are read as
+printed, only the year resolved to whichever is nearest the instant in
+question.
+
+**What the NOTAM is about is marked too**, off its own words rather than any
+code the plan does not carry: the runway is edged and tinted in the same
+muted red an over-limit SR figure already uses, the taxiway in amber: a NOTAM
+naming both is marked for the runway, the more limiting of the two. The whole
+aerodrome closed outranks either and is the one NOTAM worth a solid fill —
+everywhere else on this page red is a tint or an outline, so a filled row
+reads at a glance as the one thing here that is not routine.
+
 Everything here is as old as the document. Re-brief from the current source
 before acting on any of it.
 

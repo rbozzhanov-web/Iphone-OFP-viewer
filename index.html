@@ -293,6 +293,25 @@ mark.tafnow{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inher
   letter-spacing:.6px;text-transform:uppercase;color:var(--gold)}
 .ntm p{margin:5px 0 0;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
   white-space:pre-wrap;word-break:break-word}
+/* A NOTAM carries up to two independent marks — what it's about, on the left,
+   and whether the flight is in it right now, on the right — so both survive
+   together rather than one overwriting the other. Each sets only its own
+   half through a custom property; --err and --warn are the same muted
+   status colours a route SR figure already turns red at, not a traffic
+   light's saturated red/amber. */
+.ntm{box-shadow:var(--hz-shadow, none), var(--now-shadow, none)}
+.ntm.now{--now-shadow:inset -3px 0 0 var(--acc)}
+.ntm.rwy{--hz-shadow:inset 3px 0 0 var(--err);background:color-mix(in srgb,var(--err) 8%,transparent)}
+.ntm.rwy .id{color:var(--err)}
+.ntm.twy{--hz-shadow:inset 3px 0 0 var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.ntm.twy .id{color:var(--warn)}
+/* The whole aerodrome shut is the one NOTAM worth a solid fill rather than a
+   tint: everything else on this page, Reset included, only ever tints or
+   outlines var(--err), so a filled row reads at a glance as the one thing
+   here that is not routine. */
+.ntm.closed{background:var(--err);color:#fff}
+.ntm.closed .id,.ntm.closed .val,.ntm.closed .subj{color:#fff}
+.ntm.closed .val{opacity:.85}
 /* A long NOTAM list is opened rather than poured onto the page: eighty items put
    everything after them out of reach of a thumb. */
 .more{display:block;width:100%;background:transparent;border:0;border-top:1px solid var(--line);
@@ -1699,13 +1718,13 @@ function flightWindow(){
   const arrMs = arr === null ? null : depMs + norm(arr - dep) * 60000;
   return { depMs, arrMs, midMs: arrMs === null ? null : depMs + (arrMs - depMs) / 2 };
 }
-// Departure gets the TAF read for ETD, destination and every alternate for
-// ETA (a diversion is flown close to the arrival it replaces), the en-route
-// alternate for the midpoint of the flight — the plan gives no better instant
+// Departure is read at ETD, destination and every alternate at ETA (a
+// diversion is flown close to the arrival it replaces), the en-route
+// alternate at the midpoint of the flight — the plan gives no better instant
 // for a stop that is only ever a contingency. Nothing else in the package
 // (an area along the route, an aerodrome named for no role of its own) has an
 // instant this app can defend, so it is left unhighlighted rather than guessed.
-function tafTarget(a, win){
+function wxTarget(a, win){
   if (!win) return null;
   if (a.role === 'departure' && win.depMs != null) return { ms: win.depMs, label: 'ETD' };
   if ((a.role === 'destination' || a.role === 'alternate') && win.arrMs != null)
@@ -1791,6 +1810,57 @@ function tafChunks(text, atMs){
   return chunks;
 }
 
+/* ---- NOTAM validity highlighting ----
+   Picked out the same way as the TAF change group above, and for the same
+   reason: a NOTAM in force when the flight is actually at that aerodrome is
+   worth a glance before the rest of the list. The day-and-month here is
+   unambiguous — only the year is not, so it is resolved to whichever of the
+   year before, the anchor's own year, or the year after lands nearest, which
+   also carries a validity spanning a year-end the right way (27DEC in one
+   year through, say, 03JAN in the next). */
+const MON3 = { JAN:0, FEB:1, MAR:2, APR:3, MAY:4, JUN:5, JUL:6, AUG:7, SEP:8, OCT:9, NOV:10, DEC:11 };
+const RE_NOTAM_DATE = /^(\d{2})([A-Z]{3})(\d{2})(\d{2})$/;
+function resolveNotamDate(s, anchorMs){
+  const m = s && s.match(RE_NOTAM_DATE);
+  if (!m || !(m[2] in MON3)) return null;
+  const day = +m[1], mon = MON3[m[2]], hh = +m[3], mi = +m[4];
+  const anchor = new Date(anchorMs);
+  let best = null, bestDiff = Infinity;
+  for (const dy of [-1, 0, 1]){
+    const t = Date.UTC(anchor.getUTCFullYear() + dy, mon, day, hh, mi);
+    const diff = Math.abs(t - anchorMs);
+    if (diff < bestDiff){ bestDiff = diff; best = t; }
+  }
+  return best;
+}
+// PERM has no end to resolve; WIE and UFN carry no date of their own either —
+// already in effect, or in effect until told otherwise. A validity this app
+// cannot parse gets no highlight, the same as an aerodrome with no
+// defensible instant.
+function notamActive(n, atMs){
+  if (atMs == null) return false;
+  const from = n.from === 'WIE' || n.from === 'UFN' ? -Infinity : resolveNotamDate(n.from, atMs);
+  const to = n.to === 'PERM' || n.to === 'UFN' ? Infinity : resolveNotamDate(n.to, atMs);
+  return from != null && to != null && atMs >= from && atMs < to;
+}
+
+/* ---- what a NOTAM is about ----
+   Read off its own subject and text, not off any code the plan doesn't
+   carry: these packages print NOTAMs as free text, not the ICAO Q-line. The
+   whole aerodrome shut outranks the runway — it is the more limiting of the
+   two, and gets its own, louder mark rather than sharing the runway's; a
+   NOTAM naming both the runway and the taxiway is coloured for the runway. */
+const RE_NTM_RWY  = /\bRUNWAY\b|\bRWY\b/;
+const RE_NTM_TWY  = /\bTAXIWAY\b|\bTWY\b/;
+const RE_NTM_CLSD = /\b(?:AD|AERODROME|ARPT|AIRPORT)\s+CLOSED\b|\b(?:AD|AERODROME|ARPT)\s+CLSD\b/;
+function notamHazard(n){
+  const t = `${n.subject || ''} ${n.text || ''}`.toUpperCase();
+  if (RE_NTM_CLSD.test(t)) return 'closed';
+  if (RE_NTM_RWY.test(t)) return 'rwy';
+  if (RE_NTM_TWY.test(t)) return 'twy';
+  return null;
+}
+
 function renderWx(){
   const list = PLAN.wx.airports;
   if (!list.length){
@@ -1817,21 +1887,25 @@ function renderWx(){
     `<div class="card flush"><div class="ttl">${title}${note ? `<em>${esc(note)}</em>` : ''}</div>`
     + body + '</div>';
   const reports = arr => arr.map(t => `<pre class="rep">${esc(spaced(t))}</pre>`).join('');
-  const tgt = tafTarget(a, flightWindow());
+  const tgt = wxTarget(a, flightWindow());
   const tafReports = arr => arr.map(t => {
     const disp = spaced(t), chunks = tgt && tafChunks(disp, tgt.ms);
     if (!chunks) return `<pre class="rep">${esc(disp)}</pre>`;
     return `<pre class="rep">` + chunks.map(c =>
       c.active ? `<mark class="tafnow">${esc(c.text)}</mark>` : esc(c.text)).join('') + '</pre>';
   }).join('');
-  const tafNote = tgt && (tgt.label === 'mid' ? `flight's midpoint · ${hhmmZ(tgt.ms)}`
-                                              : `at ${tgt.label} · ${hhmmZ(tgt.ms)}`);
-  const item = n =>
-    `<div class="ntm"><span class="id">${esc(n.id)}</span>`
-    + (n.from ? `<span class="val">${esc(stamp(n.from))} → ${esc(stamp(n.to || '?'))}`
-              + `${n.est ? ' EST' : ''}</span>` : '')
-    + (n.subject ? `<span class="subj">${esc(n.subject)}</span>` : '')
-    + `<p>${esc(n.text)}</p></div>`;
+  const wxNote = tgt && (tgt.label === 'mid' ? `flight's midpoint · ${hhmmZ(tgt.ms)}`
+                                             : `at ${tgt.label} · ${hhmmZ(tgt.ms)}`);
+  const item = n => {
+    const now = tgt && notamActive(n, tgt.ms);
+    const hz = notamHazard(n);
+    const cls = ['ntm', hz, now ? 'now' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}"><span class="id">${esc(n.id)}</span>`
+      + (n.from ? `<span class="val">${esc(stamp(n.from))} → ${esc(stamp(n.to || '?'))}`
+                + `${n.est ? ' EST' : ''}</span>` : '')
+      + (n.subject ? `<span class="subj">${esc(n.subject)}</span>` : '')
+      + `<p>${esc(n.text)}</p></div>`;
+  };
 
   let h = (chips ? `<div class="chips">${chips}</div>` : '')
         + `<div class="card"><div class="ttl">Aerodrome<em>${esc(a.icao)}`
@@ -1841,14 +1915,14 @@ function renderWx(){
         + '</div>';
 
   if (a.metar.length) h += card('METAR', reports(a.metar));
-  if (a.taf.length)   h += card('TAF', tafReports(a.taf), tafNote);
+  if (a.taf.length)   h += card('TAF', tafReports(a.taf), wxNote);
   if (a.notams.length){
     const shown = wxAll ? a.notams : a.notams.slice(0, NTM_FIRST);
     h += card('NOTAM', shown.map(item).join('')
       + (a.notams.length > shown.length
          ? `<button type="button" class="more" id="wxMore">Show the remaining `
            + `${a.notams.length - shown.length}</button>` : ''),
-      a.notams.length + ' items');
+      a.notams.length + ' items' + (wxNote ? ' · ' + wxNote : ''));
   }
   if (a.co.length) h += card('Company NOTAMs', a.co.map(item).join(''), a.co.length + ' items');
   if (!a.metar.length && !a.taf.length && !a.notams.length && !a.co.length)
