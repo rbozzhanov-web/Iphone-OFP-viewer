@@ -1937,7 +1937,7 @@ function renderWx(){
         + `${a.role ? ' · ' + esc(a.role) : ''}</em></div>`
         + `<select id="wxSel" aria-label="Aerodrome">${sel}</select>`
         + (a.name ? `<div class="metaline">${esc([a.iata, a.name].filter(Boolean).join(' · '))}</div>` : '')
-        + `<button type="button" id="wxHiBtn" aria-pressed="${WXHI}">Highlight what applies now</button>`
+        + `<button type="button" id="wxHiBtn" aria-pressed="${WXHI}">Highlight what's relevant</button>`
         + '</div>';
 
   if (a.metar.length) h += card('METAR', reports(a.metar));

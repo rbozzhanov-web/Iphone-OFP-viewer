@@ -246,7 +246,7 @@ aerodrome closed outranks either and is the one NOTAM worth a solid fill —
 everywhere else on this page red is a tint or an outline, so a filled row
 reads at a glance as the one thing here that is not routine.
 
-**Highlight what applies now**, under the aerodrome dropdown, turns all three
+**Highlight what's relevant**, under the aerodrome dropdown, turns all three
 off at once for a crew that would rather read the reports plain. It is a
 device preference, kept the same way the light-or-dark choice is — set once,
 left as it is after that, and shared with the OFP companion on a phone
