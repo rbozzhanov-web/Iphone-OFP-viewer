@@ -296,11 +296,15 @@ Built for Air Astana plans: unencrypted PDF, classic xref table, uncompressed
 objects, Courier font. A document of another shape is refused on load with the
 reason, rather than half read.
 
-The theme switch uses the key the OFP companion uses. Served from the same host
-as that app — which is what github.io does for one account's repositories — a
-phone carrying both does not switch to dark on one and light on the other. The
-plan itself is kept under keys of this app's own, so nothing it does can disturb
-a plan open in the companion on the same device.
+Left untouched, the theme follows the device's own light-or-dark setting — at
+launch and live, so a change made while the app is open is felt without a
+reload. The switch in the header pins an explicit choice instead, which then
+holds through every launch until tapped again. That choice is kept under the
+key the OFP companion uses. Served from the same host as that app — which is
+what github.io does for one account's repositories — a phone carrying both
+does not switch to dark on one and light on the other. The plan itself is
+kept under keys of this app's own, so nothing it does can disturb a plan
+open in the companion on the same device.
 
 One reading differs from the companion's: a NOTAM that has no subject line of
 its own is left without one, rather than being printed under the previous

@@ -812,21 +812,32 @@ const hideMsg = el => { $(el).className = 'msg'; };
    next; served from anywhere else the setting is simply this app's own. */
 const SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.8v2.6M12 19.6v2.6M4.2 4.2l1.9 1.9M17.9 17.9l1.9 1.9M1.8 12h2.6M19.6 12h2.6M4.2 19.8l1.9-1.9M17.9 6.1l1.9-1.9"/></svg>';
 const MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
-function applyTheme(t){
+// `explicit` marks a choice the crew actually made with the switch, which is
+// the only kind worth pinning: written to storage, it holds through every
+// launch from here on, on this device and the other two apps that share the
+// key. Left unset, the device's own theme is followed instead — at launch
+// and live, for as long as nobody has ever tapped the switch.
+function applyTheme(t, explicit){
   document.documentElement.dataset.theme = t;
   const m = document.querySelector('meta[name=theme-color]');
   if (m) m.content = t === 'dark' ? '#0f1419' : '#f2f5f8';
   const b = $('#themeBtn');
   if (b) b.innerHTML = t === 'dark' ? MOON : SUN;   // the state it is in, as the switch shows it
-  try { localStorage.setItem('etofill:theme', t); } catch(e){}
+  if (explicit) try { localStorage.setItem('etofill:theme', t); } catch(e){}
 }
 $('#themeBtn').onclick = () =>
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
 (() => {
-  let t = null;
-  try { t = localStorage.getItem('etofill:theme'); } catch(e){}
-  if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  applyTheme(t);
+  const sysScheme = matchMedia('(prefers-color-scheme: light)');
+  const stored = () => { try { return localStorage.getItem('etofill:theme'); } catch(e){ return null; } };
+  applyTheme(stored() || (sysScheme.matches ? 'light' : 'dark'), false);
+  // The device can change its mind while the app stays open — sunset, or the
+  // crew's own control centre — and a switch never tapped should feel it too.
+  try {
+    sysScheme.addEventListener('change', e => {
+      if (!stored()) applyTheme(e.matches ? 'light' : 'dark', false);
+    });
+  } catch(e){}
 })();
 
 /* The scroll edge: nothing behind the bar at the top of a page, glass the moment
