@@ -17,6 +17,10 @@
    not look different because it is being read on the phone rather than filled in
    on the iPad. */
 :root{
+  /* Says which way the parts this page does not draw itself are lit — the
+     aerodrome dropdown's own list, the scrollbars, the caret. Left unsaid
+     they stay light under a dark page. */
+  color-scheme:dark;
   --bg:#0f1419; --panel:#171d24; --panel2:#1e262f; --line:#2c3742; --line2:#232c35;
   --txt:#e6edf3; --dim:#8b98a5; --acc:#4d9fff; --acc2:#1f6feb;
   --ok:#3fb950; --warn:#d29922; --err:#f85149;
@@ -31,6 +35,7 @@
   --r-card:20px; --r-in:13px; --r-pill:999px;
 }
 html[data-theme=light]{
+  color-scheme:light;
   --bg:#f2f5f8; --panel:#ffffff; --panel2:#f1f4f7; --line:#d6dde4; --line2:#e6ebf0;
   --txt:#16202b; --dim:#5d6b7a; --acc:#0b62d6; --acc2:#0b62d6;
   --ok:#1a7f37; --warn:#9a6700; --err:#cf222e;
@@ -805,40 +810,77 @@ const esc = s => String(s).replace(/[&<>"]/g, c =>
 const msg = (el, t, k) => { const e = $(el); e.className = 'msg show ' + (k || 'ok'); e.textContent = t; };
 const hideMsg = el => { $(el).className = 'msg'; };
 
-/* ================= theme =================
-   The key the OFP companion and the Journey Log use. Served from the same host
-   as those two — which is what github.io does for one account's repositories —
-   a phone carrying all three does not switch to dark on one and light on the
-   next; served from anywhere else the setting is simply this app's own. */
+/* ================= theme ================= */
 const SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.8v2.6M12 19.6v2.6M4.2 4.2l1.9 1.9M17.9 17.9l1.9 1.9M1.8 12h2.6M19.6 12h2.6M4.2 19.8l1.9-1.9M17.9 6.1l1.9-1.9"/></svg>';
 const MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
-// `explicit` marks a choice the crew actually made with the switch, which is
-// the only kind worth pinning: written to storage, it holds through every
-// launch from here on, on this device and the other two apps that share the
-// key. Left unset, the device's own theme is followed instead — at launch
-// and live, for as long as nobody has ever tapped the switch.
-function applyTheme(t, explicit){
+// Following the device is a state of its own and needs a face of its own: the
+// circle the system draws for it, lit down one side and dark down the other.
+const AUTO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/>'
+           + '<path d="M12 3.6a8.4 8.4 0 0 1 0 16.8z" fill="currentColor" stroke="none"/></svg>';
+
+/* Three states, as the system's own setting has them: follow the device, or
+   pin light, or pin dark. Which of the three the switch is in is this app's
+   own business and lives under a key of its own; the pinned colour goes on
+   under the key the companion and the Journey Log share, so a phone carrying
+   all three still switches together when a choice is actually made.
+
+   The mode key is what makes the difference readable at all. Every build
+   before this one wrote the theme it had just worked out straight back to
+   storage — the device's own included — so the first launch quietly pinned
+   whatever the phone happened to be set to that evening, and the app was
+   deaf to the setting ever after. That legacy value is therefore not read as
+   a choice: only the mode key says a choice was made, and an install
+   carrying the old value simply starts out following the device again. */
+const THEME_MODE = 'etofill:thememode';        // 'light' | 'dark'; absent = follow the device
+const THEME_PIN  = 'etofill:theme';            // the colour itself, shared with the companion
+const sysScheme = matchMedia('(prefers-color-scheme: light)');
+const sysTheme = () => sysScheme.matches ? 'light' : 'dark';
+const themeMode = () => {
+  let m = null;
+  try { m = localStorage.getItem(THEME_MODE); } catch(e){}
+  return m === 'light' || m === 'dark' ? m : 'auto';
+};
+
+function paintTheme(mode){
+  const t = mode === 'auto' ? sysTheme() : mode;
   document.documentElement.dataset.theme = t;
   const m = document.querySelector('meta[name=theme-color]');
   if (m) m.content = t === 'dark' ? '#0f1419' : '#f2f5f8';
   const b = $('#themeBtn');
-  if (b) b.innerHTML = t === 'dark' ? MOON : SUN;   // the state it is in, as the switch shows it
-  if (explicit) try { localStorage.setItem('etofill:theme', t); } catch(e){}
+  if (b){
+    b.innerHTML = mode === 'auto' ? AUTO : t === 'dark' ? MOON : SUN;
+    // Which of the three it is in, not merely which colour is on screen —
+    // following the device and pinned to the same colour look identical
+    // otherwise, and only one of them will move when the phone does.
+    const say = mode === 'auto' ? `Colour theme: following the device (${t})`
+                                : `Colour theme: ${t}, held`;
+    b.setAttribute('aria-label', say);
+    b.title = say;
+  }
 }
-$('#themeBtn').onclick = () =>
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
-(() => {
-  const sysScheme = matchMedia('(prefers-color-scheme: light)');
-  const stored = () => { try { return localStorage.getItem('etofill:theme'); } catch(e){ return null; } };
-  applyTheme(stored() || (sysScheme.matches ? 'light' : 'dark'), false);
-  // The device can change its mind while the app stays open — sunset, or the
-  // crew's own control centre — and a switch never tapped should feel it too.
+
+// Each tap is a visible change bar the last, which hands the theme back to
+// the device: from following, to the colour the device is not showing, to
+// the one it is, to following again.
+$('#themeBtn').onclick = () => {
+  const other = sysTheme() === 'dark' ? 'light' : 'dark';
+  const mode = themeMode();
+  const next = mode === 'auto' ? other : mode === other ? sysTheme() : 'auto';
   try {
-    sysScheme.addEventListener('change', e => {
-      if (!stored()) applyTheme(e.matches ? 'light' : 'dark', false);
-    });
+    if (next === 'auto') localStorage.removeItem(THEME_MODE);
+    else { localStorage.setItem(THEME_MODE, next); localStorage.setItem(THEME_PIN, next); }
   } catch(e){}
-})();
+  paintTheme(next);
+};
+
+paintTheme(themeMode());
+// The device can change its mind while the app stays open — sunset, or the
+// crew's own control centre — and a switch left following should feel it.
+try {
+  sysScheme.addEventListener('change', () => {
+    if (themeMode() === 'auto') paintTheme('auto');
+  });
+} catch(e){}
 
 /* The scroll edge: nothing behind the bar at the top of a page, glass the moment
    there is. Read off the page's own scroll rather than an observer, because the

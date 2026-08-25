@@ -296,15 +296,27 @@ Built for Air Astana plans: unencrypted PDF, classic xref table, uncompressed
 objects, Courier font. A document of another shape is refused on load with the
 reason, rather than half read.
 
-Left untouched, the theme follows the device's own light-or-dark setting — at
-launch and live, so a change made while the app is open is felt without a
-reload. The switch in the header pins an explicit choice instead, which then
-holds through every launch until tapped again. That choice is kept under the
-key the OFP companion uses. Served from the same host as that app — which is
-what github.io does for one account's repositories — a phone carrying both
-does not switch to dark on one and light on the other. The plan itself is
-kept under keys of this app's own, so nothing it does can disturb a plan
-open in the companion on the same device.
+The switch in the header has the three states the system's own setting has,
+and starts in the first of them: **follow the device**, then light held, then
+dark held, then back to following. Following is live — a phone that turns
+itself dark at sunset, or a hand on the control centre, turns the app with it
+while it sits open, no reload. The circle lit down one side is the switch
+saying it is following; a sun or a moon is it saying the colour is being
+held. Held is remembered through every launch until the switch is tapped
+round to following again.
+
+A held colour is kept under the key the OFP companion uses. Served from the
+same host as that app — which is what github.io does for one account's
+repositories — a phone carrying both does not switch to dark on one and
+light on the other. What is *not* read as a choice is that key on its own:
+every build up to now wrote back whatever colour it had just worked out, the
+device's own included, so the first launch quietly pinned whatever the phone
+was set to that evening and went deaf to the setting ever after. Only the
+switch says a choice was made, so an app carrying that old value starts out
+following the device again.
+
+The plan itself is kept under keys of this app's own, so nothing any of it
+does can disturb a plan open in the companion on the same device.
 
 One reading differs from the companion's: a NOTAM that has no subject line of
 its own is left without one, rather than being printed under the previous
