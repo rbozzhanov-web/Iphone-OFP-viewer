@@ -48,6 +48,7 @@ final class Inbox {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         guard let data = try? Data(contentsOf: url), !data.isEmpty else { return }
+        discardIfOurs(url)
 
         lock.lock()
         pending = (url.lastPathComponent, data)
@@ -66,6 +67,20 @@ final class Inbox {
         lock.unlock()
         guard let name = name else { return }
         DispatchQueue.main.async { deliver(name) }
+    }
+
+    /// A plan sent over rather than opened where it lies is copied into the
+    /// app's own Inbox on the way in, and nothing but this clears it: every
+    /// plan ever sent would else stay there, read, unreachable and counting
+    /// against the space the app is allowed. The bytes are already in hand by
+    /// the time this runs, so the file has nothing left to give.
+    private func discardIfOurs(_ url: URL) {
+        let fm = FileManager.default
+        guard let docs = try? fm.url(for: .documentDirectory, in: .userDomainMask,
+                                     appropriateFor: nil, create: false) else { return }
+        let inbox = docs.appendingPathComponent("Inbox").standardizedFileURL.path
+        guard url.standardizedFileURL.path.hasPrefix(inbox + "/") else { return }
+        try? fm.removeItem(at: url)
     }
 
     /// Handed over once and then let go — the page has it from here, and the
