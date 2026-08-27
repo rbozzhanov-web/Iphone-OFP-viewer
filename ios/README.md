@@ -69,8 +69,17 @@ honest answer is that it would want a native reader behind it.
 ## What the app adds over the page
 
 - An icon that is an app rather than a bookmark, and a place in the app switcher.
-- A plan can be sent to it from Files or Mail through the share sheet: the app
-  declares itself a viewer of PDFs, and asks for the document rather than
-  claiming to own it.
+- **A plan can be sent to it.** The app stands in *Open With* and in the share
+  sheet wherever a PDF is — Files, Mail, anything that can send one — and opens
+  the plan straight onto the Flight tab. It asks for the document rather than
+  claiming to own it, so tapping a PDF still opens whatever normally opens it;
+  the viewer is offered, never imposed.
+
+  The document is read while the leave to read it is still good, then held
+  until the page is up and able to take it — on a cold launch out of Files, the
+  app is being built at the moment the document arrives. The page then fetches
+  the bytes from the app's own scheme rather than being passed them: a briefing
+  package is several megabytes, and moving one as an argument means encoding it
+  to a string half as large again, on the thread that is drawing.
 - Nothing to fetch. The page is in the bundle, so there is no first launch that
   needs a network and no cache to be cold.

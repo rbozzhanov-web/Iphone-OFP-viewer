@@ -1548,6 +1548,33 @@ async function loadBuffer(name, size, buf, resumed){
   return true;
 }
 
+/* A plan handed over by the app around this page — sent to it from Files, from
+   Mail, from anything with a share sheet — rather than picked here. Called by
+   the app once the document is waiting; nothing on this page ever calls it, and
+   in Safari it is simply never called.
+
+   The bytes are fetched rather than passed in. A briefing package runs to
+   several megabytes and would have to be encoded to travel as an argument,
+   which costs a copy half as large again and the pause to build it, on the one
+   thread that is drawing. */
+window.__ofpOpen = name => new Promise(resolve => {
+  const fail = why => {
+    msg('#m1', 'Could not read the document that was sent over: ' + why, 'err');
+    showApp(false);
+    resolve(false);
+  };
+  const x = new XMLHttpRequest();
+  x.open('GET', 'inbox.pdf');
+  x.responseType = 'arraybuffer';
+  // A custom scheme answers with no status of its own, so an empty body is
+  // the only sign of a document that was not there to collect.
+  x.onload = () => x.response && x.response.byteLength
+    ? resolve(loadBuffer(name || 'plan.pdf', x.response.byteLength, x.response, false))
+    : fail('nothing was waiting');
+  x.onerror = () => fail('it could not be reached');
+  x.send();
+});
+
 /* ================= the header ================= */
 // DOF is field 18's own — YYMMDD, no separators, the ICAO form's date of flight.
 // Read back out in the form's own day-month-year order rather than its digits,
