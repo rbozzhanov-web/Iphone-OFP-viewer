@@ -68,6 +68,12 @@ Files or in an attachment saved from Mail. A PDF dropped anywhere on the page
 works too, on a device that can drag one — and so does one **copied** in
 Files or Mail and **pasted** here, no file dialog needed.
 
+For a PDF received directly from iOS Share Sheet, create the one-time
+**Import to OFP Viewer** Shortcut in [SHORTCUT_IMPORT.md](SHORTCUT_IMPORT.md).
+It keeps the PDF entirely on the device, avoids saving it in Files, and then
+hands it to the app through an explicit **Paste OFP from Shortcut** tap. This
+route is limited to 3 MB; the normal picker remains available for larger plans.
+
 The plan is then kept on the device, so opening the app again brings back the
 same document without going to look for the file.
 
