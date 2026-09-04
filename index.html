@@ -426,9 +426,10 @@ mark.tafnow{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inher
 .viewer.hide{display:none}
 /* The status bar's own glass reaches lower than env(safe-area-inset-top)
    reports — see the note above .bar. That bar clears it with a 24 point
-   cushion on top of the inset; this one only cleared the inset itself, so
-   the system's blur was bleeding onto Prev/Fit/Next/Close. Same cushion. */
-.viewer .chartnav{padding-top:calc(max(env(safe-area-inset-top,0px),16px) + 24px);
+   cushion on top of the inset; the same cushion here still left the toolbar
+   a few points under the glass on an iPhone 17 (iOS 26 beta), so this one
+   carries a little more. */
+.viewer .chartnav{padding-top:calc(max(env(safe-area-inset-top,0px),16px) + 36px);
   border-bottom:.5px solid var(--line);background:var(--hdr)}
 /* The ghost look is glass over content still moving under it, which is why it
    reads faint on purpose — but this bar is solid chrome with nothing behind
