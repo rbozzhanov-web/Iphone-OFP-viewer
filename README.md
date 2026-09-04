@@ -129,6 +129,17 @@ Where **Reduce Transparency** is on, or the browser cannot make glass at all, th
 chrome is simply solid. Where **Reduce Motion** is on, tabs do not slide. Nothing
 is lost in either case but the effect.
 
+The system's own glass is a moving target worth remembering before adding any
+more fixed chrome. `env(safe-area-inset-top)` is what the device says the status
+bar takes, but the status bar is itself drawn as glass reaching lower than that —
+on an iPhone 17 running the iOS 26 beta, clearing the reported inset alone still
+left a bar's own toolbar a few points under it, blurred by a system layer the
+page cannot see. Every fixed bar in this app clears the inset with an extra
+cushion on top of it for exactly that reason, and the number is settled on a
+phone rather than computed — expect it to need revisiting as Apple's glass
+changes release to release, and check any new fixed bar against a real device
+before trusting the padding on paper.
+
 ## What is on the five tabs
 
 ### Flight
