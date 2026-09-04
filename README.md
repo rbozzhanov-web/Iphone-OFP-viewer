@@ -219,6 +219,39 @@ validity and subject line above the text, then the company NOTAMs. A busy
 aerodrome runs to eighty-odd NOTAMs, so the first eight are shown and the rest
 open on a tap.
 
+**The TAF group the flight actually flies into is picked out.** The
+departure's own TAF is read for ETD, the destination's and every alternate's
+for ETA, the en-route alternate's for the flight's midpoint — a diversion has
+no better instant to be judged against. FM, BECMG, TEMPO and PROB30/PROB40
+are resolved the way the form prints them: FM replaces the forecast outright
+and holds until the next change; BECMG's new conditions stand from the end of
+its window until superseded; TEMPO and PROB30/PROB40 are highlighted only for
+the window printed on their own line, alongside whichever of those governs at
+that moment. An aerodrome named for no role of its own, or a plan carrying no
+date of flight, gets no highlight — there is no instant here worth guessing at.
+
+**A NOTAM in force at that same instant is marked the same way**, a line lit
+along its trailing edge rather than reordered — the list stays in the order
+the package prints it. WIE and UFN are read as already in effect or open-
+ended, PERM as never-ending; the day and month a NOTAM carries are read as
+printed, only the year resolved to whichever is nearest the instant in
+question.
+
+**What the NOTAM is about is marked too**, off its own words rather than any
+code the plan does not carry: the runway is edged and tinted in the same
+muted red an over-limit SR figure already uses, the taxiway in amber — either
+in the plural, RWYS or TWYS, when the NOTAM names more than one — and a NOTAM
+naming both is marked for the runway, the more limiting of the two. The whole
+aerodrome closed outranks either and is the one NOTAM worth a solid fill —
+everywhere else on this page red is a tint or an outline, so a filled row
+reads at a glance as the one thing here that is not routine.
+
+**Highlight what's relevant**, under the aerodrome dropdown, turns all three
+off at once for a crew that would rather read the reports plain. It is a
+device preference, kept the same way the light-or-dark choice is — set once,
+left as it is after that, and shared with the OFP companion on a phone
+carrying both.
+
 Everything here is as old as the document. Re-brief from the current source
 before acting on any of it.
 
@@ -263,11 +296,27 @@ Built for Air Astana plans: unencrypted PDF, classic xref table, uncompressed
 objects, Courier font. A document of another shape is refused on load with the
 reason, rather than half read.
 
-The theme switch uses the key the OFP companion uses. Served from the same host
-as that app — which is what github.io does for one account's repositories — a
-phone carrying both does not switch to dark on one and light on the other. The
-plan itself is kept under keys of this app's own, so nothing it does can disturb
-a plan open in the companion on the same device.
+The switch in the header has the three states the system's own setting has,
+and starts in the first of them: **follow the device**, then light held, then
+dark held, then back to following. Following is live — a phone that turns
+itself dark at sunset, or a hand on the control centre, turns the app with it
+while it sits open, no reload. The circle lit down one side is the switch
+saying it is following; a sun or a moon is it saying the colour is being
+held. Held is remembered through every launch until the switch is tapped
+round to following again.
+
+A held colour is kept under the key the OFP companion uses. Served from the
+same host as that app — which is what github.io does for one account's
+repositories — a phone carrying both does not switch to dark on one and
+light on the other. What is *not* read as a choice is that key on its own:
+every build up to now wrote back whatever colour it had just worked out, the
+device's own included, so the first launch quietly pinned whatever the phone
+was set to that evening and went deaf to the setting ever after. Only the
+switch says a choice was made, so an app carrying that old value starts out
+following the device again.
+
+The plan itself is kept under keys of this app's own, so nothing any of it
+does can disturb a plan open in the companion on the same device.
 
 One reading differs from the companion's: a NOTAM that has no subject line of
 its own is left without one, rather than being printed under the previous

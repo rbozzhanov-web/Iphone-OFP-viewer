@@ -21,6 +21,10 @@ struct OFPViewerApp: App {
                 // file that runs in Safari — so the host gives it the whole screen.
                 .ignoresSafeArea()
                 .statusBarHidden(false)
+                // A plan sent over from Files, Mail or anywhere else with a
+                // share sheet. It is read here and held; the page collects it
+                // once it has loaded, which on a cold launch is after this.
+                .onOpenURL { Inbox.shared.receive($0) }
         }
     }
 }

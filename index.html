@@ -17,6 +17,10 @@
    not look different because it is being read on the phone rather than filled in
    on the iPad. */
 :root{
+  /* Says which way the parts this page does not draw itself are lit — the
+     aerodrome dropdown's own list, the scrollbars, the caret. Left unsaid
+     they stay light under a dark page. */
+  color-scheme:dark;
   --bg:#0f1419; --panel:#171d24; --panel2:#1e262f; --line:#2c3742; --line2:#232c35;
   --txt:#e6edf3; --dim:#8b98a5; --acc:#4d9fff; --acc2:#1f6feb;
   --ok:#3fb950; --warn:#d29922; --err:#f85149;
@@ -31,6 +35,7 @@
   --r-card:20px; --r-in:13px; --r-pill:999px;
 }
 html[data-theme=light]{
+  color-scheme:light;
   --bg:#f2f5f8; --panel:#ffffff; --panel2:#f1f4f7; --line:#d6dde4; --line2:#e6ebf0;
   --txt:#16202b; --dim:#5d6b7a; --acc:#0b62d6; --acc2:#0b62d6;
   --ok:#1a7f37; --warn:#9a6700; --err:#cf222e;
@@ -276,10 +281,28 @@ main{will-change:transform}
 select{width:100%;background:var(--panel2);border:.5px solid var(--line);color:var(--txt);
   border-radius:var(--r-in);padding:12px 12px;
   font:700 15px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
+/* A device preference, not a per-plan one, so it reads as a pill rather than
+   as part of the aerodrome it happens to be sitting under — tinted the same
+   way a pressed chip is, with a small dot standing in for the switch a
+   plain button has no room to draw. */
+#wxHiBtn{display:flex;align-items:center;gap:8px;width:100%;margin-top:12px;
+  background:var(--panel2);border:.5px solid var(--line);color:var(--dim);
+  border-radius:var(--r-pill);padding:10px 14px;min-height:36px;
+  font:700 12.5px/1.3 -apple-system,system-ui,sans-serif;letter-spacing:.2px;text-align:left}
+#wxHiBtn::before{content:"";width:9px;height:9px;border-radius:50%;flex:0 0 auto;
+  background:var(--line);transition:background .15s}
+#wxHiBtn[aria-pressed=true]{background:color-mix(in srgb,var(--acc) 16%,transparent);
+  border-color:color-mix(in srgb,var(--acc) 42%,transparent);color:var(--acc)}
+#wxHiBtn[aria-pressed=true]::before{background:var(--acc)}
 pre{margin:0;padding:12px 13px;overflow-x:auto;-webkit-overflow-scrolling:touch;
   font:13px/1.62 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
 pre.rep{color:var(--txt)}
 pre.rep+pre.rep{border-top:1px solid var(--line2)}
+/* The change group the flight actually flies into, picked out the same way
+   the selected chip above it is — a tint of the accent, not a print colour,
+   since nothing about what the group says has changed. */
+mark.tafnow{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inherit;
+  border-radius:4px;box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 40%,transparent)}
 .ntm{padding:12px 14px;border-bottom:.5px solid var(--line2)}
 .ntm:last-child{border-bottom:0}
 .ntm .id{font:700 12px/1.4 ui-monospace,Menlo,monospace;color:var(--acc)}
@@ -288,6 +311,25 @@ pre.rep+pre.rep{border-top:1px solid var(--line2)}
   letter-spacing:.6px;text-transform:uppercase;color:var(--gold)}
 .ntm p{margin:5px 0 0;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
   white-space:pre-wrap;word-break:break-word}
+/* A NOTAM carries up to two independent marks — what it's about, on the left,
+   and whether the flight is in it right now, on the right — so both survive
+   together rather than one overwriting the other. Each sets only its own
+   half through a custom property; --err and --warn are the same muted
+   status colours a route SR figure already turns red at, not a traffic
+   light's saturated red/amber. */
+.ntm{box-shadow:var(--hz-shadow, none), var(--now-shadow, none)}
+.ntm.now{--now-shadow:inset -3px 0 0 var(--acc)}
+.ntm.rwy{--hz-shadow:inset 3px 0 0 var(--err);background:color-mix(in srgb,var(--err) 8%,transparent)}
+.ntm.rwy .id{color:var(--err)}
+.ntm.twy{--hz-shadow:inset 3px 0 0 var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.ntm.twy .id{color:var(--warn)}
+/* The whole aerodrome shut is the one NOTAM worth a solid fill rather than a
+   tint: everything else on this page, Reset included, only ever tints or
+   outlines var(--err), so a filled row reads at a glance as the one thing
+   here that is not routine. */
+.ntm.closed{background:var(--err);color:#fff}
+.ntm.closed .id,.ntm.closed .val,.ntm.closed .subj{color:#fff}
+.ntm.closed .val{opacity:.85}
 /* A long NOTAM list is opened rather than poured onto the page: eighty items put
    everything after them out of reach of a thumb. */
 .more{display:block;width:100%;background:transparent;border:0;border-top:1px solid var(--line);
@@ -768,29 +810,77 @@ const esc = s => String(s).replace(/[&<>"]/g, c =>
 const msg = (el, t, k) => { const e = $(el); e.className = 'msg show ' + (k || 'ok'); e.textContent = t; };
 const hideMsg = el => { $(el).className = 'msg'; };
 
-/* ================= theme =================
-   The key the OFP companion and the Journey Log use. Served from the same host
-   as those two — which is what github.io does for one account's repositories —
-   a phone carrying all three does not switch to dark on one and light on the
-   next; served from anywhere else the setting is simply this app's own. */
+/* ================= theme ================= */
 const SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 1.8v2.6M12 19.6v2.6M4.2 4.2l1.9 1.9M17.9 17.9l1.9 1.9M1.8 12h2.6M19.6 12h2.6M4.2 19.8l1.9-1.9M17.9 6.1l1.9-1.9"/></svg>';
 const MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
-function applyTheme(t){
+// Following the device is a state of its own and needs a face of its own: the
+// circle the system draws for it, lit down one side and dark down the other.
+const AUTO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/>'
+           + '<path d="M12 3.6a8.4 8.4 0 0 1 0 16.8z" fill="currentColor" stroke="none"/></svg>';
+
+/* Three states, as the system's own setting has them: follow the device, or
+   pin light, or pin dark. Which of the three the switch is in is this app's
+   own business and lives under a key of its own; the pinned colour goes on
+   under the key the companion and the Journey Log share, so a phone carrying
+   all three still switches together when a choice is actually made.
+
+   The mode key is what makes the difference readable at all. Every build
+   before this one wrote the theme it had just worked out straight back to
+   storage — the device's own included — so the first launch quietly pinned
+   whatever the phone happened to be set to that evening, and the app was
+   deaf to the setting ever after. That legacy value is therefore not read as
+   a choice: only the mode key says a choice was made, and an install
+   carrying the old value simply starts out following the device again. */
+const THEME_MODE = 'etofill:thememode';        // 'light' | 'dark'; absent = follow the device
+const THEME_PIN  = 'etofill:theme';            // the colour itself, shared with the companion
+const sysScheme = matchMedia('(prefers-color-scheme: light)');
+const sysTheme = () => sysScheme.matches ? 'light' : 'dark';
+const themeMode = () => {
+  let m = null;
+  try { m = localStorage.getItem(THEME_MODE); } catch(e){}
+  return m === 'light' || m === 'dark' ? m : 'auto';
+};
+
+function paintTheme(mode){
+  const t = mode === 'auto' ? sysTheme() : mode;
   document.documentElement.dataset.theme = t;
   const m = document.querySelector('meta[name=theme-color]');
   if (m) m.content = t === 'dark' ? '#0f1419' : '#f2f5f8';
   const b = $('#themeBtn');
-  if (b) b.innerHTML = t === 'dark' ? MOON : SUN;   // the state it is in, as the switch shows it
-  try { localStorage.setItem('etofill:theme', t); } catch(e){}
+  if (b){
+    b.innerHTML = mode === 'auto' ? AUTO : t === 'dark' ? MOON : SUN;
+    // Which of the three it is in, not merely which colour is on screen —
+    // following the device and pinned to the same colour look identical
+    // otherwise, and only one of them will move when the phone does.
+    const say = mode === 'auto' ? `Colour theme: following the device (${t})`
+                                : `Colour theme: ${t}, held`;
+    b.setAttribute('aria-label', say);
+    b.title = say;
+  }
 }
-$('#themeBtn').onclick = () =>
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-(() => {
-  let t = null;
-  try { t = localStorage.getItem('etofill:theme'); } catch(e){}
-  if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  applyTheme(t);
-})();
+
+// Each tap is a visible change bar the last, which hands the theme back to
+// the device: from following, to the colour the device is not showing, to
+// the one it is, to following again.
+$('#themeBtn').onclick = () => {
+  const other = sysTheme() === 'dark' ? 'light' : 'dark';
+  const mode = themeMode();
+  const next = mode === 'auto' ? other : mode === other ? sysTheme() : 'auto';
+  try {
+    if (next === 'auto') localStorage.removeItem(THEME_MODE);
+    else { localStorage.setItem(THEME_MODE, next); localStorage.setItem(THEME_PIN, next); }
+  } catch(e){}
+  paintTheme(next);
+};
+
+paintTheme(themeMode());
+// The device can change its mind while the app stays open — sunset, or the
+// crew's own control centre — and a switch left following should feel it.
+try {
+  sysScheme.addEventListener('change', () => {
+    if (themeMode() === 'auto') paintTheme('auto');
+  });
+} catch(e){}
 
 /* The scroll edge: nothing behind the bar at the top of a page, glass the moment
    there is. Read off the page's own scroll rather than an observer, because the
@@ -1458,6 +1548,33 @@ async function loadBuffer(name, size, buf, resumed){
   return true;
 }
 
+/* A plan handed over by the app around this page — sent to it from Files, from
+   Mail, from anything with a share sheet — rather than picked here. Called by
+   the app once the document is waiting; nothing on this page ever calls it, and
+   in Safari it is simply never called.
+
+   The bytes are fetched rather than passed in. A briefing package runs to
+   several megabytes and would have to be encoded to travel as an argument,
+   which costs a copy half as large again and the pause to build it, on the one
+   thread that is drawing. */
+window.__ofpOpen = name => new Promise(resolve => {
+  const fail = why => {
+    msg('#m1', 'Could not read the document that was sent over: ' + why, 'err');
+    showApp(false);
+    resolve(false);
+  };
+  const x = new XMLHttpRequest();
+  x.open('GET', 'inbox.pdf');
+  x.responseType = 'arraybuffer';
+  // A custom scheme answers with no status of its own, so an empty body is
+  // the only sign of a document that was not there to collect.
+  x.onload = () => x.response && x.response.byteLength
+    ? resolve(loadBuffer(name || 'plan.pdf', x.response.byteLength, x.response, false))
+    : fail('nothing was waiting');
+  x.onerror = () => fail('it could not be reached');
+  x.send();
+});
+
 /* ================= the header ================= */
 // DOF is field 18's own — YYMMDD, no separators, the ICAO form's date of flight.
 // Read back out in the form's own day-month-year order rather than its digits,
@@ -1671,6 +1788,12 @@ function renderRoute(){
 
 /* ================= weather ================= */
 let wxAt = 0, wxAll = false;
+// A device-wide preference, not a per-plan one — it says how the crew wants
+// the card read, not something the loaded plan has an opinion on, so it
+// lives beside the theme (same key convention, same storage) rather than in
+// the plan's own saved state.
+let WXHI = true;
+try { WXHI = localStorage.getItem('etofill:wxhi') !== '0'; } catch(e){}
 const stamp = s => {
   const m = String(s).match(/^(\d{2}[A-Z]{3})(\d{4})(?:\s+(\d{4}))?$/);
   return m ? `${m[1]} ${m[2]}Z${m[3] ? ' ' + m[3] : ''}` : s;
@@ -1678,6 +1801,170 @@ const stamp = s => {
 const spaced = s => s.replace(/^(METAR|SPECI|TAF)([A-Z]{4}\s)/, '$1 $2');
 const GROUPS = [['flight', 'This flight'], ['fir', 'Areas along the route'], ['other', 'Other aerodromes']];
 const NTM_FIRST = 8;                   // enough to see; the rest opens on a tap
+
+/* ---- when the flight is at each aerodrome ----
+   The plan's own STD/ETD and STA/ETA, against the DOF, are the only clock this
+   app has. Without a DOF the day is a guess (see departureIn), and a guessed
+   day is worse than none — so an undated plan gets no highlighting at all,
+   the same way it gets no countdown. */
+function flightWindow(){
+  const f = PLAN.icaoF || {}, fpl = PLAN.fpl || {};
+  const dof = f.f18 && f.f18.DOF && /^\d{6}$/.test(f.f18.DOF) ? f.f18.DOF : null;
+  const dep = parseHHMM(fpl.ETD || fpl.STD || f.off);
+  if (!dof || dep === null) return null;
+  const depMs = Date.UTC(2000 + +dof.slice(0, 2), +dof.slice(2, 4) - 1, +dof.slice(4, 6)) + dep * 60000;
+  const arr = parseHHMM(fpl.ETA || fpl.STA);
+  const arrMs = arr === null ? null : depMs + norm(arr - dep) * 60000;
+  return { depMs, arrMs, midMs: arrMs === null ? null : depMs + (arrMs - depMs) / 2 };
+}
+// Departure is read at ETD, destination and every alternate at ETA (a
+// diversion is flown close to the arrival it replaces), the en-route
+// alternate at the midpoint of the flight — the plan gives no better instant
+// for a stop that is only ever a contingency. Nothing else in the package
+// (an area along the route, an aerodrome named for no role of its own) has an
+// instant this app can defend, so it is left unhighlighted rather than guessed.
+function wxTarget(a, win){
+  if (!win) return null;
+  if (a.role === 'departure' && win.depMs != null) return { ms: win.depMs, label: 'ETD' };
+  if ((a.role === 'destination' || a.role === 'alternate') && win.arrMs != null)
+    return { ms: win.arrMs, label: 'ETA' };
+  if (a.role === 'en-route alternate' && win.midMs != null) return { ms: win.midMs, label: 'mid' };
+  return null;
+}
+const hhmmZ = ms => { const d = new Date(ms);
+  return String(d.getUTCHours()).padStart(2, '0') + String(d.getUTCMinutes()).padStart(2, '0') + 'Z'; };
+
+/* ---- TAF change-group highlighting ----
+   A TAF's own change groups — FM, BECMG, TEMPO, PROB30/PROB40 — carry a
+   day-of-month and an hour (FM also a minute) but never a month or year, so
+   each is only ever resolved against an instant already known to fall within
+   a day or two of it: the flight's own clock, never the device's.
+   https://www.weather.gov (TAF decode) and ICAO Annex 3 agree on the shape:
+   FM replaces everything before it outright and holds until the next FM or
+   BECMG; BECMG is a gradual change occupying its own window, in force
+   afterwards until superseded; TEMPO and PROB30/PROB40 are fluctuations or
+   probabilities superimposed on whichever of those is in force, valid only
+   for the window printed on their own line. */
+const RE_TAF_HDR = /\bTAF(?:\s+(?:AMD|COR))?\s+[A-Z]{4}\s+\d{6}Z\s+(\d{2})(\d{2})\/(\d{2})(\d{2})/;
+const RE_CHG = /\b(FM(\d{2})(\d{2})(\d{2})|BECMG|TEMPO|PROB(?:30|40))\b/g;
+const RE_WIN = /(\d{2})(\d{2})\/(\d{2})(\d{2})/;
+
+// A day-of-month and hour (and, for FM, a minute) with no month of its own,
+// resolved to whichever of the month before, the anchor's own month, or the
+// month after puts it nearest the anchor — the flight is never sixty days
+// from the plan it flew on, so the nearest reading is the right one.
+function resolveDH(d, h, mi, anchorMs){
+  const day = h === 24 ? d + 1 : d, hour = h === 24 ? 0 : h;
+  const anchor = new Date(anchorMs);
+  let best = null, bestDiff = Infinity;
+  for (const dm of [-1, 0, 1]){
+    const t = Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + dm, day, hour, mi);
+    const diff = Math.abs(t - anchorMs);
+    if (diff < bestDiff){ bestDiff = diff; best = t; }
+  }
+  return best;
+}
+
+// Splits one TAF report into its change groups and marks which ones the
+// flight actually flies into at `atMs`: the base group (the header's own
+// conditions, or the FM/BECMG that has superseded them) in force at that
+// instant, plus any TEMPO/PROB window that also covers it.
+function tafChunks(text, atMs){
+  const hdr = text.match(RE_TAF_HDR);
+  if (!hdr || atMs == null) return null;
+  const validFrom = resolveDH(+hdr[1], +hdr[2], 0, atMs);
+  const validTo = resolveDH(+hdr[3], +hdr[4], 0, atMs);
+
+  RE_CHG.lastIndex = 0;
+  const toks = [];
+  let m;
+  while ((m = RE_CHG.exec(text))){
+    const isFm = m[1].startsWith('FM');
+    const tok = { index: m.index, base: isFm || m[1] === 'BECMG', from: null, to: null };
+    if (isFm) tok.from = resolveDH(+m[2], +m[3], +m[4], atMs);
+    else {
+      const w = text.slice(m.index, m.index + 40).match(RE_WIN);
+      if (w){ tok.from = resolveDH(+w[1], +w[2], 0, atMs); tok.to = resolveDH(+w[3], +w[4], 0, atMs); }
+    }
+    toks.push(tok);
+  }
+
+  const chunks = [{ text: text.slice(0, toks.length ? toks[0].index : text.length),
+                    base: true, from: validFrom, to: null }];
+  toks.forEach((t, i) => {
+    const end = i + 1 < toks.length ? toks[i + 1].index : text.length;
+    chunks.push({ text: text.slice(t.index, end), base: t.base,
+                  from: t.from ?? validFrom, to: t.to });
+  });
+
+  // Base groups chain from the tail: each is in force until the next base
+  // group's own start, or the TAF's end. A TEMPO/PROB keeps the window
+  // printed on its own line — it does not split the base group it sits in.
+  let nextBase = validTo;
+  for (let i = chunks.length - 1; i >= 0; i--){
+    const c = chunks[i];
+    if (c.base){ c.to = nextBase; nextBase = c.from; }
+  }
+  for (const c of chunks) c.active = c.from != null && c.to != null && atMs >= c.from && atMs < c.to;
+  return chunks;
+}
+
+/* ---- NOTAM validity highlighting ----
+   Picked out the same way as the TAF change group above, and for the same
+   reason: a NOTAM in force when the flight is actually at that aerodrome is
+   worth a glance before the rest of the list. The day-and-month here is
+   unambiguous — only the year is not, so it is resolved to whichever of the
+   year before, the anchor's own year, or the year after lands nearest, which
+   also carries a validity spanning a year-end the right way (27DEC in one
+   year through, say, 03JAN in the next). */
+const MON3 = { JAN:0, FEB:1, MAR:2, APR:3, MAY:4, JUN:5, JUL:6, AUG:7, SEP:8, OCT:9, NOV:10, DEC:11 };
+const RE_NOTAM_DATE = /^(\d{2})([A-Z]{3})(\d{2})(\d{2})$/;
+function resolveNotamDate(s, anchorMs){
+  const m = s && s.match(RE_NOTAM_DATE);
+  if (!m || !(m[2] in MON3)) return null;
+  const day = +m[1], mon = MON3[m[2]], hh = +m[3], mi = +m[4];
+  const anchor = new Date(anchorMs);
+  let best = null, bestDiff = Infinity;
+  for (const dy of [-1, 0, 1]){
+    const t = Date.UTC(anchor.getUTCFullYear() + dy, mon, day, hh, mi);
+    const diff = Math.abs(t - anchorMs);
+    if (diff < bestDiff){ bestDiff = diff; best = t; }
+  }
+  return best;
+}
+// PERM has no end to resolve; WIE and UFN carry no date of their own either —
+// already in effect, or in effect until told otherwise. A validity this app
+// cannot parse gets no highlight, the same as an aerodrome with no
+// defensible instant.
+function notamActive(n, atMs){
+  if (atMs == null) return false;
+  const from = n.from === 'WIE' || n.from === 'UFN' ? -Infinity : resolveNotamDate(n.from, atMs);
+  const to = n.to === 'PERM' || n.to === 'UFN' ? Infinity : resolveNotamDate(n.to, atMs);
+  return from != null && to != null && atMs >= from && atMs < to;
+}
+
+/* ---- what a NOTAM is about ----
+   Read off its own subject and text, not off any code the plan doesn't
+   carry: these packages print NOTAMs as free text, not the ICAO Q-line that
+   would otherwise classify them — Doc 8126's own Q-code marks the aerodrome
+   FA, the runway MR, the taxiway MT, and CLSD as the condition LC, but that
+   line never survives into the briefing. What does survive is Doc 8400's own
+   abbreviations for the same three things — RWY, TWY, AD — so matching on
+   those reads a NOTAM the way its Q-line would have, plural included: a
+   NOTAM naming more than one runway or taxiway prints RWYS or TWYS. The
+   whole aerodrome shut outranks the runway — it is the more limiting of the
+   two, and gets its own, louder mark rather than sharing the runway's; a
+   NOTAM naming both the runway and the taxiway is coloured for the runway. */
+const RE_NTM_RWY  = /\bRUNWAYS?\b|\bRWYS?\b/;
+const RE_NTM_TWY  = /\bTAXIWAYS?\b|\bTWYS?\b/;
+const RE_NTM_CLSD = /\b(?:AD|AERODROME|ARPT|AIRPORT)\s+CLOSED\b|\b(?:AD|AERODROME|ARPT)\s+CLSD\b/;
+function notamHazard(n){
+  const t = `${n.subject || ''} ${n.text || ''}`.toUpperCase();
+  if (RE_NTM_CLSD.test(t)) return 'closed';
+  if (RE_NTM_RWY.test(t)) return 'rwy';
+  if (RE_NTM_TWY.test(t)) return 'twy';
+  return null;
+}
 
 function renderWx(){
   const list = PLAN.wx.airports;
@@ -1705,29 +1992,43 @@ function renderWx(){
     `<div class="card flush"><div class="ttl">${title}${note ? `<em>${esc(note)}</em>` : ''}</div>`
     + body + '</div>';
   const reports = arr => arr.map(t => `<pre class="rep">${esc(spaced(t))}</pre>`).join('');
-  const item = n =>
-    `<div class="ntm"><span class="id">${esc(n.id)}</span>`
-    + (n.from ? `<span class="val">${esc(stamp(n.from))} → ${esc(stamp(n.to || '?'))}`
-              + `${n.est ? ' EST' : ''}</span>` : '')
-    + (n.subject ? `<span class="subj">${esc(n.subject)}</span>` : '')
-    + `<p>${esc(n.text)}</p></div>`;
+  const tgt = WXHI ? wxTarget(a, flightWindow()) : null;
+  const tafReports = arr => arr.map(t => {
+    const disp = spaced(t), chunks = tgt && tafChunks(disp, tgt.ms);
+    if (!chunks) return `<pre class="rep">${esc(disp)}</pre>`;
+    return `<pre class="rep">` + chunks.map(c =>
+      c.active ? `<mark class="tafnow">${esc(c.text)}</mark>` : esc(c.text)).join('') + '</pre>';
+  }).join('');
+  const wxNote = tgt && (tgt.label === 'mid' ? `flight's midpoint · ${hhmmZ(tgt.ms)}`
+                                             : `at ${tgt.label} · ${hhmmZ(tgt.ms)}`);
+  const item = n => {
+    const now = tgt && notamActive(n, tgt.ms);
+    const hz = WXHI ? notamHazard(n) : null;
+    const cls = ['ntm', hz, now ? 'now' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}"><span class="id">${esc(n.id)}</span>`
+      + (n.from ? `<span class="val">${esc(stamp(n.from))} → ${esc(stamp(n.to || '?'))}`
+                + `${n.est ? ' EST' : ''}</span>` : '')
+      + (n.subject ? `<span class="subj">${esc(n.subject)}</span>` : '')
+      + `<p>${esc(n.text)}</p></div>`;
+  };
 
   let h = (chips ? `<div class="chips">${chips}</div>` : '')
         + `<div class="card"><div class="ttl">Aerodrome<em>${esc(a.icao)}`
         + `${a.role ? ' · ' + esc(a.role) : ''}</em></div>`
         + `<select id="wxSel" aria-label="Aerodrome">${sel}</select>`
         + (a.name ? `<div class="metaline">${esc([a.iata, a.name].filter(Boolean).join(' · '))}</div>` : '')
+        + `<button type="button" id="wxHiBtn" aria-pressed="${WXHI}">Highlight what's relevant</button>`
         + '</div>';
 
   if (a.metar.length) h += card('METAR', reports(a.metar));
-  if (a.taf.length)   h += card('TAF', reports(a.taf));
+  if (a.taf.length)   h += card('TAF', tafReports(a.taf), wxNote);
   if (a.notams.length){
     const shown = wxAll ? a.notams : a.notams.slice(0, NTM_FIRST);
     h += card('NOTAM', shown.map(item).join('')
       + (a.notams.length > shown.length
          ? `<button type="button" class="more" id="wxMore">Show the remaining `
            + `${a.notams.length - shown.length}</button>` : ''),
-      a.notams.length + ' items');
+      a.notams.length + ' items' + (wxNote ? ' · ' + wxNote : ''));
   }
   if (a.co.length) h += card('Company NOTAMs', a.co.map(item).join(''), a.co.length + ' items');
   if (!a.metar.length && !a.taf.length && !a.notams.length && !a.co.length)
@@ -1739,6 +2040,11 @@ function renderWx(){
   $('#wxSel').onchange = e => pick(+e.target.value);
   const more = $('#wxMore');
   if (more) more.onclick = () => { wxAll = true; renderWx(); };
+  $('#wxHiBtn').onclick = () => {
+    WXHI = !WXHI;
+    try { localStorage.setItem('etofill:wxhi', WXHI ? '1' : '0'); } catch(e){}
+    renderWx();
+  };
 }
 
 /* ================= charts =================
