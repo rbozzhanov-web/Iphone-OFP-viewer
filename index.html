@@ -1066,18 +1066,30 @@ function keyFigures(lines){
 /* The fuel block on page 1 is a column of "LABEL H.MM NNNNN" — TRIP, CONT, ALTN,
    FINRES, EXTRA, BLOCK FUEL. Read as a shape rather than as a fixed list of
    labels, so a package that carries one more line still shows it. The trailing
-   text of the BLOCK FUEL line (it also carries the PIC BLOCK blank) is ignored. */
+   text of the BLOCK FUEL line (it also carries the PIC BLOCK blank) is ignored.
+
+   TAXI is the one line in the block with no time of its own — it is a flat
+   allowance rather than anything worked out from a duration, so it prints as
+   just "TAXI   NNNNN" and would never match the H.MM shape above. */
 function fuelBlock(lines){
   const rows = [];
   const seen = new Set();
   for (const l of lines){
     if (l.page !== 0 || CHROME(l.text)) continue;
-    const m = l.text.trim().match(/^([A-Z][A-Z0-9 \/\-]{1,20}?)\s+(\d{1,2}\.[0-5]\d)\s+(\d{2,6})(?:\s|$)/);
-    if (!m) continue;
-    const label = m[1].replace(/\s+/g, ' ').trim();
-    if (seen.has(label)) continue;
-    seen.add(label);
-    rows.push({ label, time: m[2], fuel: +m[3] });
+    const t = l.text.trim();
+    let m = t.match(/^([A-Z][A-Z0-9 \/\-]{1,20}?)\s+(\d{1,2}\.[0-5]\d)\s+(\d{2,6})(?:\s|$)/);
+    if (m){
+      const label = m[1].replace(/\s+/g, ' ').trim();
+      if (seen.has(label)) continue;
+      seen.add(label);
+      rows.push({ label, time: m[2], fuel: +m[3] });
+      continue;
+    }
+    if ((m = t.match(/^(TAXI)\s+(\d{2,6})(?:\s|$)/))){
+      if (seen.has(m[1])) continue;
+      seen.add(m[1]);
+      rows.push({ label: m[1], time: null, fuel: +m[2] });
+    }
   }
   return rows.length >= 2 ? rows : null;
 }
@@ -1684,7 +1696,7 @@ function renderFlight(){
   if (p.fuel){
     const rows = p.fuel.map(r =>
       `<div class="kv"><span class="k">${esc(r.label)}</span>`
-      + `<span class="v">${group3(r.fuel)}<small>${esc(r.time)}</small></span></div>`).join('');
+      + `<span class="v">${group3(r.fuel)}${r.time ? `<small>${esc(r.time)}</small>` : ''}</span></div>`).join('');
     const main = p.pairs.filter(w => w.sec === 1);
     const land = main.length ? main[main.length - 1].rem : null;
     h += '<div class="card flush"><div class="ttl">Fuel, kg<em>as planned</em></div>' + rows
