@@ -462,6 +462,7 @@ body.locked{overflow:hidden}
   <input type="file" id="file" accept="application/pdf,.pdf" class="hide">
   <div class="msg" id="m1"></div>
   <div class="loadbtns">
+    <button type="button" id="shortcutBtn">Paste OFP from Shortcut</button>
     <button type="button" class="ghost hide" id="backBtn">Back to the plan</button>
     <button type="button" class="ghost hide" id="resetBtn">Reset</button>
   </div>
@@ -1532,6 +1533,64 @@ addEventListener('paste', e => {
   const f = files && [...files].find(x => x.type === 'application/pdf' || /\.pdf$/i.test(x.name || ''));
   if (f){ e.preventDefault(); load(f); }
 });
+
+/* iOS does not let an installed web app receive a file directly from the share
+   sheet. The companion Shortcut receives the PDF, puts its bytes on the local
+   clipboard as base64, and this explicit tap reads them back. The gesture is
+   deliberate: Safari will not grant clipboard access on launch or in the
+   background. The limit protects the short-lived string copies made by WebKit
+   while the PDF is decoded; the stored document itself remains the ArrayBuffer
+   already kept locally in IndexedDB below. */
+const SHORTCUT_PREFIX = 'OFPVIEWER-PDF-v1:';
+const SHORTCUT_MAX = 3 * 1024 * 1024;
+$('#shortcutBtn').onclick = importShortcutPDF;
+
+async function importShortcutPDF(){
+  if (!navigator.clipboard || !navigator.clipboard.readText){
+    msg('#m1', 'Clipboard import is not available here. Open OFP Viewer from its Home Screen icon in Safari.', 'err');
+    return;
+  }
+  let text;
+  try { text = await navigator.clipboard.readText(); }
+  catch (e){
+    msg('#m1', 'iPhone did not allow clipboard access. Tap this button again, then choose Allow Paste.', 'warn');
+    return;
+  }
+  if (!text.startsWith(SHORTCUT_PREFIX)){
+    msg('#m1', 'Nothing from the OFP Shortcut is waiting. Share a PDF to “Import to OFP Viewer” first.', 'warn');
+    return;
+  }
+  const b64 = text.slice(SHORTCUT_PREFIX.length).replace(/\\s/g, '');
+  if (!b64 || !/^[A-Za-z0-9+/]*={0,2}$/.test(b64)){
+    msg('#m1', 'The Shortcut data is incomplete. Share the PDF again and retry.', 'err');
+    return;
+  }
+  const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+  const bytes = Math.floor(b64.length * 3 / 4) - padding;
+  if (bytes > SHORTCUT_MAX){
+    msg('#m1', 'This PDF is ' + (bytes / 1048576).toFixed(1) + ' MB. Shortcut import is limited to 3 MB; use the normal PDF picker for this one.', 'warn');
+    return;
+  }
+  let binary;
+  try { binary = atob(b64); }
+  catch (e){
+    msg('#m1', 'The Shortcut data could not be decoded. Share the PDF again and retry.', 'err');
+    return;
+  }
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  if (String.fromCharCode(...out.subarray(0, 5)) !== '%PDF-'){
+    msg('#m1', 'The Shortcut did not contain a PDF.', 'err');
+    return;
+  }
+  const opened = await loadBuffer('OFP from Shortcut.pdf', out.byteLength, out.buffer, false);
+  if (opened){
+    // Best effort only: a current iOS paste permission may expire during parsing.
+    // The PDF is already in IndexedDB, so an uncleared clipboard changes nothing
+    // in the document's local-only path.
+    try { await navigator.clipboard.writeText(''); } catch (e){}
+  }
+}
 /* The start screen is where a plan comes from and where it can be put down
    again. Going there costs nothing — the plan is still loaded and Back returns
    to it — so the file picker is not forced open on the way; that took the
