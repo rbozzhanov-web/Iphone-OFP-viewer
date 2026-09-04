@@ -65,7 +65,8 @@ a page.
 
 Tap the box and pick the file: the plan is usually already on the phone, in
 Files or in an attachment saved from Mail. A PDF dropped anywhere on the page
-works too, on a device that can drag one.
+works too, on a device that can drag one — and so does one **copied** in
+Files or Mail and **pasted** here, no file dialog needed.
 
 The plan is then kept on the device, so opening the app again brings back the
 same document without going to look for the file.

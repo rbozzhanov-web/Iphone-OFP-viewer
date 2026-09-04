@@ -456,7 +456,7 @@ body.locked{overflow:hidden}
       before you get to the aircraft. Reading only: nothing is written into the document.</div>
   </div>
   <div id="drop">
-    Tap to choose a PDF
+    Tap to choose a PDF, or paste one
     <div class="fn" id="fname"></div>
   </div>
   <input type="file" id="file" accept="application/pdf,.pdf" class="hide">
@@ -1520,6 +1520,16 @@ $('#file').onchange = e => { if (e.target.files[0]) load(e.target.files[0]); };
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => {
   const f = e.dataTransfer && e.dataTransfer.files[0];
+  if (f){ e.preventDefault(); load(f); }
+});
+/* A document copied in Files, or an attachment copied out of Mail, pastes as a
+   file rather than as text — Cmd+V (or the system Paste gesture) needs no
+   input focused to work here, same as the drop above. Anything that is not a
+   PDF is left for whatever a paste would normally do on this page — nothing,
+   there being no text field to receive it. */
+addEventListener('paste', e => {
+  const files = e.clipboardData && e.clipboardData.files;
+  const f = files && [...files].find(x => x.type === 'application/pdf' || /\.pdf$/i.test(x.name || ''));
   if (f){ e.preventDefault(); load(f); }
 });
 /* The start screen is where a plan comes from and where it can be put down
