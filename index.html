@@ -385,8 +385,11 @@ mark.tafnow{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inher
   .card{margin-bottom:9px}
 
   /* What the header gives back goes to the sheet, which is the reason to turn
-     the phone in the first place. */
+     the phone in the first place. In landscape the island moves to the side,
+     so the glass cushion the portrait bar needs above itself is dead space
+     here too — same as .bar just above. */
   .chartnav{padding:7px 12px}
+  .viewer .chartnav{padding-top:max(env(safe-area-inset-top,0px),4px)}
   .chartnav button{min-height:32px;padding:6px 13px}
   .foot{margin-top:10px}
 }
@@ -421,7 +424,11 @@ mark.tafnow{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inher
 .viewer{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
   background:var(--panel)}
 .viewer.hide{display:none}
-.viewer .chartnav{padding-top:max(env(safe-area-inset-top,0px),8px);
+/* The status bar's own glass reaches lower than env(safe-area-inset-top)
+   reports — see the note above .bar. That bar clears it with a 24 point
+   cushion on top of the inset; this one only cleared the inset itself, so
+   the system's blur was bleeding onto Prev/Fit/Next/Close. Same cushion. */
+.viewer .chartnav{padding-top:calc(max(env(safe-area-inset-top,0px),16px) + 24px);
   border-bottom:.5px solid var(--line);background:var(--hdr)}
 /* The ghost look is glass over content still moving under it, which is why it
    reads faint on purpose — but this bar is solid chrome with nothing behind
