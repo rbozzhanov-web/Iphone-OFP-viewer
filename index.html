@@ -1560,7 +1560,14 @@ async function importShortcutPDF(){
     msg('#m1', 'Nothing from the OFP Shortcut is waiting. Share a PDF to “Import to OFP Viewer” first.', 'warn');
     return;
   }
-  const b64 = text.slice(SHORTCUT_PREFIX.length).replace(/\\s/g, '');
+  // Shortcuts may insert a line break or coerce its Base64 result into a data
+  // URI. Both forms carry the same local PDF bytes, so discard only that
+  // presentation prefix; never accept any other MIME type here.
+  const copied = text.slice(SHORTCUT_PREFIX.length).trim();
+  const b64 = copied
+    .replace(/^data:application\/pdf(?:;[^,]*)?;base64,/i, '')
+    .replace(/\s/g, '')
+    .replace(/-/g, '+').replace(/_/g, '/');
   if (!b64 || !/^[A-Za-z0-9+/]*={0,2}$/.test(b64)){
     msg('#m1', 'The Shortcut data is incomplete. Share the PDF again and retry.', 'err');
     return;
