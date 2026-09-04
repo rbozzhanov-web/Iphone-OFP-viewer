@@ -423,6 +423,12 @@ mark.tafnow{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inher
 .viewer.hide{display:none}
 .viewer .chartnav{padding-top:max(env(safe-area-inset-top,0px),8px);
   border-bottom:.5px solid var(--line);background:var(--hdr)}
+/* The ghost look is glass over content still moving under it, which is why it
+   reads faint on purpose — but this bar is solid chrome with nothing behind
+   it to show through, and Prev/Fit/Next/Close are the only way to move
+   through the charts. Glass rules read as barely-there here instead. */
+.viewer .chartnav button.ghost{background:var(--panel2);color:var(--txt);
+  -webkit-backdrop-filter:none;backdrop-filter:none}
 .viewer .chartbox{flex:1;min-height:0;height:auto;max-height:none;border-radius:0}
 body.locked{overflow:hidden}
 
