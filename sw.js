@@ -2,8 +2,18 @@
 const V = 'ofp-viewer-v1';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
+// Cache.addAll() is all-or-nothing: one flaky fetch among the five files here —
+// exactly the weak-signal case this whole cache exists for — used to fail the
+// entire install, which meant skipWaiting() never ran and the cache stayed
+// permanently empty, so freshPage() below always missed and fell through to
+// the network wait on every single launch, forever, not just once. Caching
+// each file independently means a single miss doesn't cost the others.
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(V)
+      .then(c => Promise.all(FILES.map(url => fetch(url).then(r => { if (r.ok) return c.put(url, r); }).catch(() => {}))))
+      .then(() => self.skipWaiting())
+  );
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
