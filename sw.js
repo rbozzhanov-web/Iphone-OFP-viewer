@@ -25,15 +25,34 @@ self.addEventListener('activate', e => {
 // or in a hangar with no signal is the normal case, not the fallback one, and
 // a page that waits on the network first reads as broken exactly when it
 // matters most. The cache answers immediately every time there is one; a
-// fetch still runs alongside it to refresh the cache for the launch after
-// this one. Offline never updates, same as before — the version you leave
-// the ground with is the version you fly with, just without a wait to get it.
+// fetch still runs alongside it — online or offline, it's always attempted,
+// it just resolves to nothing when there's no signal — to check for a newer
+// index.html. Most of the time there isn't one, and nothing further happens:
+// the cache is refreshed for next time exactly as before. Only when the
+// fetched bytes actually differ from what was already cached does the page
+// get told an update is sitting there, so it can decide to pick it up now
+// instead of waiting for the next full relaunch.
 function freshPage(req){
   const revalidate = fetch(req).then(r => {
-    caches.open(V).then(c => c.put('./index.html', r.clone())).catch(() => {});
+    if (!r.ok) return r;
+    const forCache = r.clone();
+    const forCompare = r.clone();
+    caches.open(V).then(c => c.match('./index.html').then(prevHit =>
+      Promise.all([prevHit ? prevHit.clone().text() : null, forCompare.text()]).then(([prevText, freshText]) =>
+        c.put('./index.html', forCache).then(() => {
+          if (prevText !== null && prevText !== freshText) notifyUpdateAvailable();
+        })
+      )
+    )).catch(() => {});
     return r;
   }).catch(() => null);
   return caches.match('./index.html').then(hit => hit || revalidate.then(r => r || caches.match('./index.html')));
+}
+
+function notifyUpdateAvailable(){
+  self.clients.matchAll({ type: 'window' }).then(clients => {
+    clients.forEach(client => client.postMessage({ type: 'ofp-update-available' }));
+  });
 }
 
 self.addEventListener('fetch', e => {
