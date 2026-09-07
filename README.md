@@ -99,8 +99,10 @@ computer.
 sheet pinch the whole interface — header, tabs and all — and the sheet is no
 easier to read for it. So the chart box takes the gesture for itself: the sheet
 is sized and moved on its own while the app around it holds still, and two taps
-go in on what is under them and back to the whole sheet. Everywhere else there is
-nothing to zoom and the system's own pinch is left alone.
+go in on what is under them and back to the whole sheet. Everywhere else the
+viewport itself is pinned at one scale — a page that quietly zoomed under a
+thumb would not read as an app — so a pinch or a double tap outside a chart
+does nothing at all.
 
 ## On its side
 
