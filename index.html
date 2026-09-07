@@ -912,8 +912,17 @@ try {
   edge();
 })();
 
-if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
+// The service worker always shows the cached page first, then checks the
+// network in the background regardless of connectivity. Most checks find
+// nothing new. When one does, it says so here rather than just quietly
+// caching it for next time — reload now, on the launch that found it,
+// instead of leaving it sitting unseen until the next cold start.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'ofp-update-available') location.reload();
+  });
+}
 
 /* ================= PDF parsing =================
    Lifted from the OFP companion and cut back to what a reader needs: the
