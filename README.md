@@ -39,17 +39,19 @@ as it stands:
 
 That address is the app. Every push to `main` republishes it.
 
-The page itself is fetched from the network whenever there is one, so a new
-version is picked up on the next launch rather than waiting on a service-worker
-update check; if the network does not answer within 2.5 seconds the app starts
-from its cache instead, so a slow link never delays it. A change to
-`index.html` therefore needs nothing else done to it. Bump the `V` constant in
-`sw.js` when one of the other cached files changes — the manifest or an icon —
-since those are served from the cache first and a new generation is what
-replaces them.
+The app opens from its cache every time, instantly, whether or not there is a
+network — a pilot opening this in a hangar or on a plane with no signal is the
+normal case here, not the fallback one. A fetch still runs alongside that
+cached load to pick up whatever is on `main`, but it only ever updates what the
+*next* launch opens to; it never makes the current one wait. A change to
+`index.html` therefore needs nothing else done to it and shows up one launch
+after it is pushed. Bump the `V` constant in `sw.js` when one of the other
+cached files changes — the manifest or an icon — since those are served from
+the cache first and a new generation is what replaces them.
 
 Offline it never updates — the version you leave the ground with is the version
-you fly with.
+you fly with — and now that is true of every launch, not only an offline one:
+nothing here ever waits on the network to decide what to show.
 
 ## Putting it on the iPhone
 
