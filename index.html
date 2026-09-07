@@ -84,6 +84,10 @@ button.sm{padding:9px 15px;font-size:13px;min-height:38px}
 #drop .fn{margin-top:8px;font-size:13px;color:var(--dim);word-break:break-all}
 .disc{display:flex;align-items:flex-start;gap:9px;margin:0;font-size:12.5px;line-height:1.6;color:var(--dim)}
 .disc::before{content:"";flex:0 0 auto;width:6px;height:6px;margin-top:7px;border-radius:50%;background:var(--gold)}
+.disc+.disc{margin-top:8px}
+/* The one link this page has that goes anywhere. Coloured like a link so it
+   reads as a door out of the app rather than another thing the app does. */
+.disc a{color:var(--acc);font-weight:600;text-decoration:none}
 .msg{font-size:13.5px;padding:12px 14px;border-radius:var(--r-in);display:none;line-height:1.5}
 .msg.show{display:block}
 .msg.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);
@@ -468,6 +472,7 @@ body.locked{overflow:hidden}
   </div>
   <p class="disc">Only Air Astana computerized flight plans are supported. The document is read
     on this device and goes nowhere else — no network, no account, no key.</p>
+  <p class="disc"><a href="https://tripinfo.airastana.com/login" target="_blank" rel="noopener noreferrer">Air Astana Trip Info ↗</a> — the airline's own site, opens in the browser. Nothing from a plan loaded here is sent to it.</p>
 </div>
 
 <!-- ================= the document ================= -->

@@ -77,6 +77,12 @@ route is limited to 3 MB; the normal picker remains available for larger plans.
 The plan is then kept on the device, so opening the app again brings back the
 same document without going to look for the file.
 
+A link to the airline's own [Trip Info](https://tripinfo.airastana.com/login)
+site sits under the disclaimer on this screen, styled and worded to read as a
+door out of the app rather than one more thing it does: a plain link that opens
+in the browser, carrying nothing from a plan loaded here. Everything above it
+on this screen is still true of the app itself.
+
 The house in the header returns to this screen with the plan still loaded, so
 another one can be chosen — or **Back to the plan** returns to the one open.
 **Reset** puts the document down for good: the plan, what was decoded from it,
