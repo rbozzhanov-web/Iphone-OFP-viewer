@@ -193,6 +193,16 @@ by walking the page in the order it was drawn rather than by position — right
 for prose, and left alone for the fixed-width tables everywhere else on this
 tab. A package carrying none says nothing here rather than an empty card.
 
+A document runs on over as many pages as it needs, and only its first carries
+the MANDATORY READ title; the rest are known by the "MAN nnn-yy" head and
+"page n of m" foot every page repeats, and a sentence that breaks across a page
+carries straight on. The printed lines are set back into paragraphs, headings
+and bullet points, with the typeface's own quotes and dashes kept. Two things
+are left to the PDF: the sign-off under "Issued By:", two columns of names that
+cannot be read apart line by line, and any line set in a font this reader cannot
+decode — a menu path drawn as keycaps, say — which is shown as a pointer to its
+page rather than as noise that would read like text.
+
 ### Route
 
 Every waypoint with the leg times the plan gives it. The times down the right are
