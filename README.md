@@ -203,6 +203,16 @@ cannot be read apart line by line, and any line set in a font this reader cannot
 decode — a menu path drawn as keycaps, say — which is shown as a pointer to its
 page rather than as noise that would read like text.
 
+**Where the text sends you elsewhere, it links there.** A passage that points at
+something the text cannot carry — "as shown at the picture below", a figure, a
+map — carries a *see p. 79* link, and so does a line that could not be decoded;
+each document also lists its pages as printed. A link opens that page of the
+original PDF in the same viewer as the charts, zoomable, with Prev and Next
+through the rest of the document. The page is cut from the PDF on the spot as a
+one-page PDF of its own, appended after the original bytes rather than written
+into them, and Safari draws it like any picture; a browser that cannot is
+offered the page in its own PDF viewer instead.
+
 ### Route
 
 Every waypoint with the leg times the plan gives it. The times down the right are
