@@ -237,6 +237,10 @@ main{will-change:transform}
 .man p.li{margin-top:6px;padding-left:16px;position:relative}
 .man p.li::before{content:"•";position:absolute;left:3px;color:var(--dim)}
 .man p.lost{font-style:italic;color:var(--warn)}
+.man .orig{margin-top:10px;font-size:12px;color:var(--dim)}
+.man button.pg{background:none;border:0;border-radius:4px;padding:2px 3px;min-height:0;
+  font:inherit;font-style:normal;font-weight:600;color:var(--acc);cursor:pointer}
+.man button.pg:active{transform:none;opacity:.55}
 
 /* ================= the waypoints ================= */
 .base{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
@@ -1075,7 +1079,10 @@ function manPage(items, page){
    punctuation, standing on its own, is a section heading; a bullet starts an
    item of its own. A line manPage could not decode (marked with a lone NUL)
    is shown as a pointer to its page rather than as noise that reads like
-   text. */
+   text. A paragraph that sends the reader to something the text cannot carry —
+   the picture below, the figure above — remembers the page it says so on, so
+   it can open that page. */
+const MAN_REDIR = /\b(?:pictures?|figures?|fig\.|images?|diagrams?|illustrations?|screenshots?|photos?|drawings?|maps?)\b|\b(?:shown|see|as follows)\b[^.]{0,40}\b(?:below|above|overleaf)\b/i;
 function manParas(lines){
   const measure = Math.max(0, ...lines.map(l => l.t.length));
   const out = [];
@@ -1092,6 +1099,7 @@ function manParas(lines){
     if (!para || bullet || /^Note:/i.test(t) || ended){
       flush(); para = { kind: bullet ? 'li' : 'p', text: t.replace(/^•\s*/, '') };
     } else para.text += ' ' + t;
+    if (para.ref === undefined && MAN_REDIR.test(para.text)) para.ref = page;
     prev = t;
   }
   flush();
@@ -1136,6 +1144,59 @@ async function chartUrl(doc, page, key){
   cv.width = cv.height = 0;                        // release the backing store
   return URL.createObjectURL(blob);
 }
+
+/* ---- an original page ----
+   What this reader cannot set out itself — a line in a font it cannot decode,
+   the screenshot a mandatory read says is "below" — is shown from the PDF. One
+   page is made a PDF of its own by an incremental update: a copy of its page
+   object under a new one-page tree and catalog, appended after the original
+   bytes, which are not touched. Everything the page draws with stays where it
+   was, found through the original cross-reference table by /Prev. Nothing of it
+   is kept: the copy lives only as a blob URL for as long as the plan is open. */
+function pagePdf(doc, p){
+  const pg = doc.pages()[p];
+  const hex = s => '<' + [...s].map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('') + '>';
+  const nm = s => '/' + s.replace(/[^!-~]|[#%()<>[\]{}/]/g,
+    c => '#' + c.charCodeAt(0).toString(16).padStart(2, '0'));
+  const ser = v => v === null || v === undefined ? 'null'
+    : typeof v === 'number' ? String(Number.isInteger(v) ? v : +v.toFixed(6))
+    : typeof v === 'boolean' ? String(v)
+    : Array.isArray(v) ? '[' + v.map(ser).join(' ') + ']'
+    : 'ref' in v ? v.ref + ' 0 R'
+    : 'name' in v ? nm(v.name)
+    : 'text' in v ? hex(v.text)
+    : '<<' + Object.keys(v).map(k => nm(k) + ' ' + ser(v[k])).join(' ') + '>>';
+
+  const N = Math.max(+doc.trailer.Size || 0, ...doc.xref.keys()) + 1;
+  // Annotations point at pages of the whole document, which this one is not.
+  const { Annots, B, ...own } = pg.dict;
+  const page = { ...own, Parent: { ref: N + 1 },
+                 Resources: own.Resources !== undefined ? own.Resources : pg.Resources,
+                 MediaBox: own.MediaBox !== undefined ? own.MediaBox : pg.MediaBox };
+  const objs = [ser(page),
+                `<< /Type /Pages /Kids [${N} 0 R] /Count 1 >>`,
+                `<< /Type /Catalog /Pages ${N + 1} 0 R >>`];
+  const prev = +/startxref\s+(\d+)/.exec(doc.s.slice(doc.s.lastIndexOf('startxref')))[1];
+  const base = doc.bytes.length;
+  let tail = '\n';
+  const offs = objs.map((o, k) => {
+    const at = base + tail.length;
+    tail += `${N + k} 0 obj\n${o}\nendobj\n`;
+    return at;
+  });
+  const xref = base + tail.length;
+  tail += `xref\n${N} ${objs.length}\n`
+        + offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('')
+        + `trailer\n<< /Size ${N + objs.length} /Root ${N + 2} 0 R /Prev ${prev} >>\n`
+        + `startxref\n${xref}\n%%EOF\n`;
+  return new Blob([doc.bytes, Uint8Array.from(tail, c => c.charCodeAt(0))], { type: 'application/pdf' });
+}
+const ORIG = new Map();                // page index -> blob URL of that page on its own
+function origUrl(p){
+  if (!ORIG.has(p)) ORIG.set(p, URL.createObjectURL(pagePdf(DOC, p)));
+  return ORIG.get(p);
+}
+function dropOrig(){ for (const u of ORIG.values()) URL.revokeObjectURL(u); ORIG.clear(); }
 
 /* ---- OFP identity and briefing sections ---- */
 const CHROME = t => /^AIR ASTANA BRIEF/i.test(t) || /^PAGE \d+ OF \d+$/i.test(t);
@@ -1768,7 +1829,8 @@ function showApp(on){
 // for the next launch. What is left is the screen the app opens on.
 function reset(){
   for (const c of CHARTS) if (c.url) URL.revokeObjectURL(c.url);
-  CHARTS = []; chartAt = 0;
+  CHARTS = []; SHEETS = []; chartAt = 0;
+  dropOrig();
   PLAN = null; DOC = null; NAME = '';
   $('#fname').textContent = '';
   $('#file').value = '';
@@ -1975,15 +2037,21 @@ function renderFlight(){
                                          : `p. ${m.pages[0] + 1}`;
            const meta = ['MAN ' + m.man, m.issue && 'issue ' + m.issue, m.rev && 'rev ' + m.rev, pg]
              .filter(Boolean).join(' · ');
+           // Each opens the original page in the sheet viewer, with the rest of
+           // the document's pages either side of it for Prev and Next.
+           const go = (at, label) => `<button type="button" class="pg" data-pages="${m.pages.join(',')}" `
+             + `data-at="${at}">${label}</button>`;
+           const see = q => q.ref === undefined ? '' : ' ' + go(q.ref, `see p. ${q.ref + 1} ↗`);
            const body = m.paras.map(q =>
              q.kind === 'h'  ? `<h4>${esc(q.text)}</h4>`
-           : q.kind === 'li' ? `<p class="li">${esc(q.text)}</p>`
-           : q.kind === 'lost' ? `<p class="lost">A line here is set in a symbol typeface this `
-                               + `reader cannot decode — see page ${q.page + 1} of the PDF.</p>`
-           : `<p>${esc(q.text)}</p>`).join('');
+           : q.kind === 'li' ? `<p class="li">${esc(q.text)}${see(q)}</p>`
+           : q.kind === 'lost' ? `<p class="lost">A line here is set in a font this reader cannot `
+                               + `decode — ${go(q.page, `open page ${q.page + 1} ↗`)}</p>`
+           : `<p>${esc(q.text)}${see(q)}</p>`).join('');
            return `<details class="man"><summary>${esc(m.subject || 'MAN ' + m.man)}`
              + `<small>${esc(meta)}</small>`
              + (m.applic ? `<small>For ${esc(m.applic)}</small>` : '') + '</summary>'
+             + `<div class="orig">As printed: ${m.pages.map(pp => go(pp, `p. ${pp + 1}`)).join(' · ')}</div>`
              + body + '</details>';
          }).join('')
        + '</div>';
@@ -1995,6 +2063,12 @@ function renderFlight(){
      + 'current source before acting on them.</p>';
 
   $('#p-flight').innerHTML = h;
+  $('#p-flight').onclick = e => {
+    const b = e.target.closest && e.target.closest('button.pg');
+    if (!b) return;
+    const pages = b.dataset.pages.split(',').map(Number);
+    openViewer(pages.indexOf(+b.dataset.at), pages.map(page => ({ page, orig: true, url: null })));
+  };
 }
 
 /* ================= route ================= */
@@ -2396,9 +2470,12 @@ async function decodePreviews(){
 /* ---- the viewer ----
    One sheet, over the top of everything, with the fingers to itself. Opened by
    tapping a chart and left by Close or Escape; Prev and Next stay because a
-   sheet is read against its neighbours. */
-function openViewer(i){
-  if (!CHARTS[i]) return;
+   sheet is read against its neighbours. The sheets are the charts, or the
+   original pages of a mandatory read opened from one of its page links. */
+let SHEETS = [];
+function openViewer(i, list){
+  SHEETS = list || CHARTS;
+  if (!SHEETS[i]) return;
   chartAt = i;
   $('#cView').classList.remove('hide');
   document.body.classList.add('locked');
@@ -2410,24 +2487,34 @@ function closeViewer(){
   document.body.classList.remove('locked');
 }
 $('#cPrev').onclick = () => { if (chartAt > 0){ chartAt--; paintChart(); } };
-$('#cNext').onclick = () => { if (chartAt < CHARTS.length - 1){ chartAt++; paintChart(); } };
+$('#cNext').onclick = () => { if (chartAt < SHEETS.length - 1){ chartAt++; paintChart(); } };
 $('#cFit').onclick = () => fitChart();
 $('#cClose').onclick = closeViewer;
 
 async function paintChart(){
-  const c = CHARTS[chartAt], box = $('#cBox');
+  const c = SHEETS[chartAt], box = $('#cBox');
   if (!c || !box) return;
-  $('#cWho').textContent = `${chartAt + 1} of ${CHARTS.length} · page ${c.page + 1}`;
+  $('#cWho').textContent = c.orig
+    ? `page ${c.page + 1} of the PDF` + (SHEETS.length > 1 ? ` · ${chartAt + 1} of ${SHEETS.length}` : '')
+    : `${chartAt + 1} of ${SHEETS.length} · page ${c.page + 1}`;
   $('#cPrev').disabled = chartAt === 0;
-  $('#cNext').disabled = chartAt === CHARTS.length - 1;
+  $('#cNext').disabled = chartAt === SHEETS.length - 1;
   if (!c.url){
     box.innerHTML = '<p>Decoding…</p>';
-    try { c.url = await chartUrl(DOC, DOC.pages()[c.page], c.key); }
-    catch (e){ box.innerHTML = `<p>Could not read this chart: ${esc(e.message)}</p>`; return; }
-    if (CHARTS[chartAt] !== c) return;              // paged on while decoding
+    try { c.url = c.orig ? origUrl(c.page) : await chartUrl(DOC, DOC.pages()[c.page], c.key); }
+    catch (e){ box.innerHTML = `<p>Could not read this page: ${esc(e.message)}</p>`; return; }
+    if (SHEETS[chartAt] !== c) return;              // paged on while decoding
   }
-  box.innerHTML = `<img src="${c.url}" alt="Chart on page ${c.page + 1}" draggable="false">`;
+  // An original page is a one-page PDF, which Safari draws as a picture like any
+  // other. It is laid out at twice its size in points so there is detail left
+  // to zoom into; where a browser cannot draw a PDF as a picture, the page is
+  // offered to its own PDF viewer instead.
+  box.innerHTML = `<img src="${c.url}" alt="Page ${c.page + 1}"${c.orig ? ' data-k="2"' : ''} draggable="false">`;
   const img = box.querySelector('img');
+  if (c.orig) img.onerror = () => {
+    box.innerHTML = `<p>This browser cannot show a PDF page here. `
+      + `<a href="${c.url}" target="_blank" rel="noopener">Open page ${c.page + 1} in its PDF viewer</a>.</p>`;
+  };
   // A cached image can be complete before the load event would ever fire.
   if (img.complete && img.naturalWidth) fitChart(); else img.onload = () => fitChart();
 }
@@ -2447,7 +2534,9 @@ function fitChart(){
   const box = $('#cBox'), img = chartImg();
   if (!box || !img || !img.naturalWidth) return;
   if (!box.clientWidth || !box.clientHeight) return;   // the tab is not on screen
-  VIEW.w = img.naturalWidth; VIEW.h = img.naturalHeight;
+  const k = +img.dataset.k || 1;
+  VIEW.w = img.naturalWidth * k; VIEW.h = img.naturalHeight * k;
+  if (k !== 1){ img.style.width = VIEW.w + 'px'; img.style.height = VIEW.h + 'px'; }
   VIEW.fit = Math.min(box.clientWidth / VIEW.w, box.clientHeight / VIEW.h);
   VIEW.scale = VIEW.fit;
   applyView();
@@ -2697,6 +2786,7 @@ function slidePage(area, x, animated){
 function render(){
   for (const c of CHARTS) if (c.url) URL.revokeObjectURL(c.url);
   CHARTS = PLAN.charts.map(c => ({ ...c, url: null }));
+  SHEETS = []; dropOrig();
   chartAt = 0; wxAt = 0; wxAll = false;
   BASE = parseHHMM((PLAN.fpl && PLAN.fpl.ETD) || (PLAN.icaoF && PLAN.icaoF.off));
   renderHeader();
