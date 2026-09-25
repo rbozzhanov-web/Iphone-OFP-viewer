@@ -226,6 +226,13 @@ main{will-change:transform}
 .kv .v .neg{color:var(--ok)}      /* under a limit is the comfortable side */
 .kv .v .over{color:var(--err)}
 
+/* ================= mandatory reads ================= */
+.man{padding:12px 14px;border-top:.5px solid var(--line2)}
+.man:first-of-type{border-top:0}
+.man summary{cursor:pointer;font-size:14px;font-weight:600;list-style:revert}
+.man summary small{display:block;margin-top:2px;font-size:11.5px;font-weight:400;color:var(--dim)}
+.man p{margin:10px 0 0;font-size:13.5px;line-height:1.55}
+
 /* ================= the waypoints ================= */
 .base{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
   padding:11px 13px;border-bottom:1px solid var(--line)}
@@ -979,6 +986,47 @@ function chartPage(doc, page, i, textCount, out){
   out.push({ page: i, key: keys[0], w, h });
 }
 
+/* ---- mandatory reads ----
+   A "MAN nnn-yy" attachment sets its prose in a proportional, justified font
+   instead of the plan's own monospace body text. Justification can place a
+   line's punctuation to the left of the word it follows, so sorting a line's
+   characters by x — safe below for the plan's fixed-width tables, which this
+   never touches — reads a page like this out of order (a colon landing inside
+   a word). The content stream draws every page in the order it is meant to be
+   read in, so this walks that order directly instead of re-sorting it. */
+function manPage(items){
+  if (items.length < 30) return null;
+  const rows = [];
+  let cur = null;
+  for (const it of items){
+    const y = Math.round(it.y * 2) / 2;
+    if (!cur || cur.y !== y){ cur = { y, s: '' }; rows.push(cur); }
+    cur.s += it.str;
+  }
+  rows.sort((a, b) => b.y - a.y);
+  const lines = rows.map(r => r.s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const readAt = lines.findIndex(l => /^MANDATORY READ\b/i.test(l));
+  if (readAt < 0) return null;
+
+  const head = lines.find(l => /^MAN\s+[\w-]+$/i.test(l));
+  const man = head ? head.match(/^MAN\s+([\w-]+)/i)[1] : null;
+  const footer = lines.find(l => /\bpage\s+\d+\s+of\s+\d+\b/i.test(l));
+  const subject = lines.find(l => /^SUBJECT:/i.test(l));
+  const applic = lines.find(l => /^APPLICABILITY:/i.test(l));
+  const bodyEnd = footer ? lines.lastIndexOf(footer) : lines.length;
+  // The bullet in a list line comes through as a symbol-font glyph this reader
+  // has no glyph table for, landing as a stray NUL ahead of an "x" that is not
+  // actually part of the word that follows it.
+  const body = lines.slice(readAt + 1, bodyEnd)
+    .filter(l => l !== subject && l !== applic)
+    .map(l => l.replace(/^\u0000x\s+/, '• ').replace(/\u0000/g, ''));
+
+  return { man,
+           subject: subject ? subject.replace(/^SUBJECT:\s*/i, '') : null,
+           applic: applic ? applic.replace(/^APPLICABILITY:\s*/i, '') : null,
+           body };
+}
+
 // Decode one chart to a blob URL. Handles the two encodings these packages use:
 // a raw RGB or palette bitmap under FlateDecode, and a plain JPEG under DCTDecode.
 async function chartUrl(doc, page, key){
@@ -1256,12 +1304,14 @@ async function parse(buf){
   const doc = new PDFMini.Doc(new Uint8Array(buf));
   DOC = doc;
   const pages = doc.pages();
-  const dotRows = [], page0 = [], allLines = [], charts = [];
+  const dotRows = [], page0 = [], allLines = [], charts = [], manPages = [];
   let fpl = null, lastHdr = null;
 
   for (let p = 0; p < pages.length; p++){
     const items = PDFMini.textItems(await doc.content(pages[p]));
     chartPage(doc, pages[p], p, items.length, charts);
+    const man = manPage(items);
+    if (man) manPages.push(man);
     const byLine = new Map();
     for (const it of items){
       if (it.size < 9 || it.size > 13) continue;
@@ -1395,7 +1445,24 @@ async function parse(buf){
   // nothing here is fatal: a section with nothing behind it simply says so.
   return { pairs, fpl, icao, charts, pageCount: pages.length,
            ofp: ofpIdent(allLines), figs: keyFigures(allLines), fuel: fuelBlock(allLines),
-           icaoF: icaoFields(icao), wx: weatherNotams(allLines, icao) };
+           icaoF: icaoFields(icao), wx: weatherNotams(allLines, icao),
+           mandatoryReads: mandatoryReads(manPages) };
+}
+
+// A "MAN nnn-yy" document can run several pages, each carrying its own copy of
+// the header and footer; grouped here by that number, in the order its pages
+// were read, so a document that spans a page break reads as the one document.
+function mandatoryReads(manPages){
+  const by = new Map();
+  for (const r of manPages){
+    if (!r.man) continue;
+    if (!by.has(r.man)) by.set(r.man, { man: r.man, subject: null, applic: null, body: [] });
+    const d = by.get(r.man);
+    if (r.subject && !d.subject) d.subject = r.subject;
+    if (r.applic && !d.applic) d.applic = r.applic;
+    d.body.push(...r.body);
+  }
+  return [...by.values()];
 }
 
 /* ---- METAR / TAF / NOTAM ----
@@ -1817,6 +1884,20 @@ function renderFlight(){
            `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('')
        + '</div>';
 
+  /* mandatory reads — attachments the crew is meant to have read before dispatch,
+     collapsed by default since some run to several paragraphs, but never hidden:
+     a package that carries one says so here rather than leaving it found only by
+     paging all the way through the PDF. */
+  if (p.mandatoryReads && p.mandatoryReads.length){
+    h += '<div class="card flush"><div class="ttl">Mandatory Reads'
+       + `<em>${p.mandatoryReads.length}</em></div>`
+       + p.mandatoryReads.map(m =>
+           `<details class="man"><summary>${esc(m.subject || 'MAN ' + m.man)}`
+           + (m.applic ? `<small>${esc(m.applic)}</small>` : '') + '</summary>'
+           + m.body.map(t => `<p>${esc(t)}</p>`).join('') + '</details>').join('')
+       + '</div>';
+  }
+
   h += `<p class="foot"><b>${esc(NAME)}</b> · ${p.pageCount} pages · read on this device, `
      + 'nothing is uploaded and nothing is written back into the document.<br>'
      + 'The weather and the NOTAMs are exactly as old as this package — re-brief from the '
@@ -2083,7 +2164,14 @@ function renderWx(){
   if (wxAt >= list.length) wxAt = 0;
   const a = list[wxAt];
 
-  const chips = list.map((x, n) => x.group === 'flight'
+  // Departure, destination and alternates always get a chip; an overflown FIR
+  // gets one too only when it is actually carrying a company notice — an FIR
+  // crossed with nothing to say about it stays in the picker, where the other
+  // twenty the route also crosses belong. A restricted area or similar special
+  // notice against a FIR is exactly the kind of thing worth a chip, same as the
+  // aerodromes flown to and from — it should not take digging through a long
+  // alphabetical list to find, whichever FIR it happens to be posted against.
+  const chips = list.map((x, n) => (x.group === 'flight' || (x.group === 'fir' && x.co.length))
     ? `<button type="button" data-wx="${n}" aria-pressed="${n === wxAt}">${esc(x.icao)}</button>` : '')
     .join('');
   const sel = GROUPS.map(([g, label]) => {

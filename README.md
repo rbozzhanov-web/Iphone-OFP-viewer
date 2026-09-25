@@ -181,9 +181,17 @@ TOW                    145 979
 
 so the margin is read rather than worked out. Then the fuel block as the plan
 prints it, TRIP through BLOCK, with the planned remaining at destination taken
-from the last waypoint of the main route. Last, the flight plan in brief: cruise
+from the last waypoint of the main route. Then the flight plan in brief: cruise
 speed and level, alternates, en-route alternate, the FIR boundaries the plan
 crosses, equipment, PBN, SELCAL.
+
+Last, any **Mandatory Read** the package carries — a "MAN nnn-yy" attachment
+of company policy, collapsed to its subject line until tapped open. These set
+their prose in a different, proportional typeface from the rest of the plan,
+which the plan's own table parsing has no business touching, so they are read
+by walking the page in the order it was drawn rather than by position — right
+for prose, and left alone for the fixed-width tables everywhere else on this
+tab. A package carrying none says nothing here rather than an empty card.
 
 ### Route
 
@@ -238,9 +246,12 @@ so at the top and names how many waypoints disagree.
 ### Weather
 
 The METAR, TAF and NOTAMs the package carries, one aerodrome at a time. The
-aerodromes of this flight are chips across the top for a single tap; the
-dropdown under them holds everything the package covers, in three groups — this
-flight, areas along the route, other aerodromes.
+aerodromes of this flight are chips across the top for a single tap — and so is
+any overflown FIR carrying a company notice of its own, a special restricted
+area or similar, rather than leaving it to be found by paging through however
+many other FIRs the route happens to cross that carry nothing. The dropdown
+under the chips holds everything else the package covers, in three groups —
+this flight, areas along the route, other aerodromes.
 
 METAR and TAF are shown raw as printed, then each NOTAM with its number,
 validity and subject line above the text, then the company NOTAMs. A busy
