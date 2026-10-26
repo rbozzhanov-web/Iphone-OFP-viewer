@@ -53,6 +53,11 @@ Offline it never updates — the version you leave the ground with is the versio
 you fly with — and now that is true of every launch, not only an offline one:
 nothing here ever waits on the network to decide what to show.
 
+When that fetch does find a new version, it is taken at once if no plan is
+open. With a plan open, a bar at the top offers it instead: **Update now**
+reloads into the new version with the same plan back, and **Later** puts the
+bar away until the app is next brought to the front.
+
 ## Putting it on the iPhone
 
 Worth doing once: it then runs offline and behaves like a normal app rather than
@@ -181,37 +186,36 @@ TOW                    145 979
 
 so the margin is read rather than worked out. Then the fuel block as the plan
 prints it, TRIP through BLOCK, with the planned remaining at destination taken
-from the last waypoint of the main route. Then the flight plan in brief: cruise
-speed and level, alternates, en-route alternate, the FIR boundaries the plan
-crosses, equipment, PBN, SELCAL.
+from the last waypoint of the main route.
 
-Last, any **Mandatory Read** the package carries — a "MAN nnn-yy" attachment
-of company policy, collapsed to its subject line until tapped open. These set
-their prose in a different, proportional typeface from the rest of the plan,
-which the plan's own table parsing has no business touching, so they are read
-by walking the page in the order it was drawn rather than by position — right
-for prose, and left alone for the fixed-width tables everywhere else on this
-tab. A package carrying none says nothing here rather than an empty card.
+Then the flight plan in brief: cruise speed and level, alternates, en-route
+alternate, the FIR boundaries the plan crosses, equipment, PBN, SELCAL.
 
-A document runs on over as many pages as it needs, and only its first carries
-the MANDATORY READ title; the rest are known by the "MAN nnn-yy" head and
-"page n of m" foot every page repeats, and a sentence that breaks across a page
-carries straight on. The printed lines are set back into paragraphs, headings
-and bullet points, with the typeface's own quotes and dashes kept. Two things
-are left to the PDF: the sign-off under "Issued By:", two columns of names that
-cannot be read apart line by line, and any line set in a font this reader cannot
-decode — a menu path drawn as keycaps, say — which is shown as a pointer to its
-page rather than as noise that would read like text.
+**In this package**, under the times, lists everything the package carries
+that this reader does not set out itself, so none of it goes unnoticed — the
+OFP companion's card, brought across. Each group folds to one line with its
+count, and the card's header gives the totals:
 
-**Where the text sends you elsewhere, it links there.** A passage that points at
-something the text cannot carry — "as shown at the picture below", a figure, a
-map — carries a *see p. 79* link, and so does a line that could not be decoded;
-each document also lists its pages as printed. A link opens that page of the
-original PDF in the same viewer as the charts, zoomable, with Prev and Next
-through the rest of the document. The page is cut from the PDF on the spot as a
-one-page PDF of its own, appended after the original bytes rather than written
-into them, and Safari draws it like any picture; a browser that cannot is
-offered the page in its own PDF viewer instead.
+- **Attached — read before departure**: every **Mandatory Read** ("MAN
+  nnn-yy" company documents), by subject, MAN number, issue, revision, pages
+  and fleet, and every other document stapled behind the brief — a station
+  briefing, an Operations Manual extract, a de-icing table, the reporting-point
+  maps — by the title on its first page. A page is the brief's own when it
+  carries its "BRIEF PAGE n OF m" mark; anything else is attached.
+- **Company NOTAMs for every flight**: the notices filed under a category
+  rather than an aerodrome — ADMIN, WAYPOINT and the like — which used to be
+  dropped for want of one. *View* opens them on the Weather tab.
+- **Briefing contents**: the brief's own sections with the page each starts
+  on, found by how the brief sets its headings rather than by a list of names,
+  so a section added later is listed too.
+
+**Open** shows a document as printed — its own pages of the original PDF in
+the same viewer as the charts, the first page first, Prev and Next through the
+rest; a page fills the width and moves up and down. A mandatory read is not
+re-set as text: the PDF is what was issued, so it is what is shown. The page is
+cut from the PDF on the spot as a one-page PDF of its own, appended after the
+original bytes rather than written into them, and Safari draws it like any
+picture; a browser that cannot is offered the page in its own PDF viewer.
 
 ### Route
 
@@ -270,13 +274,20 @@ aerodromes of this flight are chips across the top for a single tap — and so i
 any overflown FIR carrying a company notice of its own, a special restricted
 area or similar, rather than leaving it to be found by paging through however
 many other FIRs the route happens to cross that carry nothing. The dropdown
-under the chips holds everything else the package covers, in three groups —
-this flight, areas along the route, other aerodromes.
+under the chips holds everything else the package covers, in four groups —
+this flight, company notices, areas along the route, other aerodromes.
 
 METAR and TAF are shown raw as printed, then each NOTAM with its number,
 validity and subject line above the text, then the company NOTAMs. A busy
 aerodrome runs to eighty-odd NOTAMs, so the first eight are shown and the rest
 open on a tap.
+
+**Every NOTAM is listed on its own.** A NOTAM issued since the last briefing is
+flagged NEW out in the margin, where the others carry their dash, and is tagged
+**NEW** here; one naming two places ("NOTAMOPKR OPLR …") is listed under each;
+and the briefing's own dividers — a "..D.." line, a "Fir: … Region: …" heading —
+close the NOTAM above them. Each of those used to run a NOTAM into the end of
+the one before it, eighteen of them in one real package.
 
 **The TAF group the flight actually flies into is picked out.** The
 departure's own TAF is read for ETD, the destination's and every alternate's
@@ -303,13 +314,23 @@ in the plural, RWYS or TWYS, when the NOTAM names more than one — and a NOTAM
 naming both is marked for the runway, the more limiting of the two. The whole
 aerodrome closed outranks either and is the one NOTAM worth a solid fill —
 everywhere else on this page red is a tint or an outline, so a filled row
-reads at a glance as the one thing here that is not routine.
+reads at a glance as the one thing here that is not routine. A navigation aid
+out of use — VOR, DME, NDB, ILS and its parts, TACAN, GNSS … together with
+U/S, NOT AVBL, withdrawn or on test — has a rose red of its own and a
+**NAVAID U/S** tag, and outranks the runway: "RWY 28 LLZ U/S" is about the
+localizer. A procedure merely not available is not a navaid out.
+
+**Order** sets the list as printed or **Relevant first**: what is in effect for
+the flight ahead of everything else — the aerodrome closed, a navaid out or the
+runway before a taxiway before the rest — then what is marked but not in
+effect, then the remainder after a "The rest, as printed" line. Each group keeps
+the printed order. It sorts by the highlights, so with them off it waits.
 
 **Highlight what's relevant**, under the aerodrome dropdown, turns all three
 off at once for a crew that would rather read the reports plain. It is a
 device preference, kept the same way the light-or-dark choice is — set once,
 left as it is after that, and shared with the OFP companion on a phone
-carrying both.
+carrying both; so is the order.
 
 Everything here is as old as the document. Re-brief from the current source
 before acting on any of it.
@@ -353,7 +374,11 @@ blanks the companion fills in are not read at all — they are places to write.
 
 Built for Air Astana plans: unencrypted PDF, classic xref table, uncompressed
 objects, Courier font. A document of another shape is refused on load with the
-reason, rather than half read.
+reason, rather than half read — an encrypted one by name. The engine carries
+the companion's hardening too: a cross-reference table claiming more entries
+than the file holds is rejected rather than walked, the page tree is walked
+once, and no stream is inflated past a fixed bound, so a damaged file stops the
+load instead of hanging the phone.
 
 The switch in the header has the three states the system's own setting has,
 and starts in the first of them: **follow the device**, then light held, then
