@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ofp_bg">#f2f5f8</color>
+    <color name="ofp_icon_bg">#253168</color>
+
+    <!-- No action bar: the reader has its own. The window starts in the page's
+         background colour so there is no white flash while it loads. -->
+    <style name="Theme.OFPViewer" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ofp_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

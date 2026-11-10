@@ -12,6 +12,9 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 <title>OFP Viewer</title>
+<!-- Inside the Android app the page is loaded with ?shell=android; marked before
+     the first paint, so the few rules that differ there apply from the start. -->
+<script>if (/[?&]shell=android\b/.test(location.search)) document.documentElement.dataset.shell = 'android';</script>
 <style>
 /* The OFP companion's palette, unchanged: the two are one family and a plan must
    not look different because it is being read on the phone rather than filled in
@@ -52,6 +55,14 @@ body{margin:0;background:var(--bg);color:var(--txt);-webkit-tap-highlight-color:
   overscroll-behavior-y:none}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .hide{display:none!important}
+/* Inside the Android app the system bars sit outside the page, so the room kept
+   for an iPhone's status-bar glass is not needed; the Shortcut import is an
+   iOS way in, where the app is offered PDFs directly; and on a wide screen —
+   the Find N6 unfolded — the one column is let out to use it. */
+html[data-shell=android] .bar{padding-top:10px}
+html[data-shell=android] .viewer .chartnav{padding-top:8px}
+html[data-shell=android] #shortcutBtn{display:none}
+@media (min-width:820px){ html[data-shell=android] main{max-width:1100px} }
 /* The bar offering a new version over an open plan (as in the companion). */
 .updbar{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);
   z-index:70;display:flex;align-items:center;gap:10px;width:max-content;max-width:calc(100vw - 32px);
@@ -989,6 +1000,8 @@ function paintTheme(mode){
   document.documentElement.dataset.theme = t;
   const m = document.querySelector('meta[name=theme-color]');
   if (m) m.content = t === 'dark' ? '#0f1419' : '#f2f5f8';
+  // The Android app colours its status and navigation bars to match.
+  try { if (window.OFPAndroid) window.OFPAndroid.setTheme(t === 'dark'); } catch(e){}
   const b = $('#themeBtn');
   if (b){
     b.innerHTML = mode === 'auto' ? AUTO : t === 'dark' ? MOON : SUN;
@@ -1044,7 +1057,10 @@ try {
 // offered instead, as the companion does: Update now reloads into the new
 // version with the same plan back (it is kept on the device), and Later puts
 // the bar away until the app is next brought to the front.
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+// The Android app carries its own copy of this page and is updated with the
+// app itself, so it has no use for the worker.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')
+    && document.documentElement.dataset.shell !== 'android') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
   let waiting = false;
   navigator.serviceWorker.addEventListener('message', e => {
@@ -1417,6 +1433,23 @@ function origUrl(p){
   return ORIG.get(p);
 }
 function dropOrig(){ for (const u of ORIG.values()) URL.revokeObjectURL(u); ORIG.clear(); }
+/* In the Android app the WebView cannot draw a PDF as a picture, as Safari
+   can, so the app draws the page itself with the system's own PDF renderer and
+   serves it back as an image. It needs the document for that: handed over once
+   per plan, through the bridge the app provides, and never further than the
+   app's own cache. A page of a new plan gets a new address, so it is never
+   served from the last plan's copy. */
+let ANDROID_DOC = null, ANDROID_GEN = 0;
+function androidPageUrl(p){
+  if (ANDROID_DOC !== DOC){
+    const b = DOC.bytes, C = 0x8000;
+    let bin = '';
+    for (let i = 0; i < b.length; i += C) bin += String.fromCharCode.apply(null, b.subarray(i, i + C));
+    if (!window.OFPAndroid.setPdf(btoa(bin))) throw new Error('the app could not open this PDF');
+    ANDROID_DOC = DOC; ANDROID_GEN++;
+  }
+  return `/native/page/${p}.png?plan=${ANDROID_GEN}`;
+}
 
 /* ---- OFP identity and briefing sections ---- */
 const CHROME = t => /^AIR ASTANA BRIEF/i.test(t) || /^PAGE \d+ OF \d+$/i.test(t);
@@ -1654,7 +1687,6 @@ function srColumn(a, b){
 
 async function parse(buf){
   const doc = new PDFMini.Doc(new Uint8Array(buf));
-  DOC = doc;
   const pages = doc.pages();
   const dotRows = [], page0 = [], allLines = [], charts = [], manPages = [], pinfo = [];
   let fpl = null, lastHdr = null, navPage = null;
@@ -1812,7 +1844,7 @@ async function parse(buf){
   if (navPage !== null) sections.push({ title: 'Navigation log', page: navPage });
   if (charts.length) sections.push({ title: 'Charts', page: charts[0].page });
   sections.sort((a, b) => a.page - b.page);
-  return { pairs, fpl, icao, charts, pageCount: pages.length,
+  return { doc, pairs, fpl, icao, charts, pageCount: pages.length,
            ofp: ofpIdent(allLines), figs: keyFigures(allLines), fuel: fuelBlock(allLines),
            icaoF: icaoFields(icao), wx: weatherNotams(allLines, icao),
            mandatoryReads: reads, attachments, sections };
@@ -2113,22 +2145,29 @@ function reset(){
 
 async function load(f){ return loadBuffer(f.name, f.size, await f.arrayBuffer(), false); }
 
+let LOADGEN = 0;
 async function loadBuffer(name, size, buf, resumed){
   if (typeof DecompressionStream === 'undefined'){
     msg('#m1', 'Browser too old: no DecompressionStream. Safari 16.4 / iOS 16.4 or newer is required.', 'err');
     return false;
   }
+  // A plan handed over by the app around the page can arrive while the last one
+  // is still being brought back from storage; whichever load began last is the
+  // one shown, and a slower earlier one is dropped rather than drawn over it.
+  const gen = ++LOADGEN;
   $('#fname').textContent = name + '  ·  ' + (size / 1048576).toFixed(1) + ' MB';
   hideMsg('#m1');
   let plan;
   try {
     plan = await parse(buf);
   } catch (err){
+    if (gen !== LOADGEN) return false;
     msg('#m1', 'Could not read the document: ' + err.message, 'err');
     showApp(false);
     return false;
   }
-  PLAN = plan; NAME = name;
+  if (gen !== LOADGEN) return false;
+  PLAN = plan; DOC = plan.doc; NAME = name;
   render();
   showApp(true);
   if (!resumed) keepSession(name, size, buf);
@@ -2845,7 +2884,8 @@ async function paintChart(){
   $('#cNext').disabled = chartAt === SHEETS.length - 1;
   if (!c.url){
     box.innerHTML = '<p>Decoding…</p>';
-    try { c.url = c.orig ? origUrl(c.page) : await chartUrl(DOC, DOC.pages()[c.page], c.key); }
+    try { c.url = c.orig ? (window.OFPAndroid ? androidPageUrl(c.page) : origUrl(c.page))
+                         : await chartUrl(DOC, DOC.pages()[c.page], c.key); }
     catch (e){ box.innerHTML = `<p>Could not read this page: ${esc(e.message)}</p>`; return; }
     if (SHEETS[chartAt] !== c) return;              // paged on while decoding
   }
@@ -2853,11 +2893,18 @@ async function paintChart(){
   // other. It is laid out at twice its size in points so there is detail left
   // to zoom into; where a browser cannot draw a PDF as a picture, the page is
   // offered to its own PDF viewer instead.
-  box.innerHTML = `<img src="${c.url}" alt="Page ${c.page + 1}"${c.orig ? ' data-k="2"' : ''} draggable="false">`;
+  // The Android app draws the page itself, at full size, as an ordinary picture.
+  const pdfImg = c.orig && !window.OFPAndroid;
+  box.innerHTML = `<img src="${c.url}" alt="Page ${c.page + 1}"${c.orig ? ' data-orig="1"' : ''}`
+    + `${pdfImg ? ' data-k="2"' : ''} draggable="false">`;
   const img = box.querySelector('img');
-  if (c.orig) img.onerror = () => {
+  if (pdfImg) img.onerror = () => {
     box.innerHTML = `<p>This browser cannot show a PDF page here. `
       + `<a href="${c.url}" target="_blank" rel="noopener">Open page ${c.page + 1} in its PDF viewer</a>.</p>`;
+  };
+  else if (c.orig) img.onerror = () => {
+    c.url = null;                                   // ask the app again next time
+    box.innerHTML = `<p>The app could not draw page ${c.page + 1}.</p>`;
   };
   // A cached image can be complete before the load event would ever fire.
   if (img.complete && img.naturalWidth) fitChart(); else img.onload = () => fitChart();
@@ -2884,7 +2931,7 @@ function fitChart(){
   // A chart is fitted whole. An original page fills the width in its own
   // proportions and is moved up and down — fitted whole, a portrait page on a
   // phone held sideways is too small to read. (As the companion settled it.)
-  VIEW.fit = k !== 1 ? box.clientWidth / VIEW.w
+  VIEW.fit = img.dataset.orig ? box.clientWidth / VIEW.w
                      : Math.min(box.clientWidth / VIEW.w, box.clientHeight / VIEW.h);
   VIEW.scale = VIEW.fit;
   VIEW.tx = VIEW.ty = 0;                 // a page taller than the box starts at its top

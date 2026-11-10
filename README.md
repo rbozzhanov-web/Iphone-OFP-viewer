@@ -24,6 +24,13 @@ built for a phone held in one hand.
 > Developer account to go further — see [`ios/README.md`](ios/README.md). Added
 > to the home screen from Safari, the page needs none of it.
 
+> **And an Android app**, for folding phones as much as ordinary ones. `android/`
+> wraps this same page in a native shell; GitHub builds it into an APK on every
+> change, and the newest one is always at
+> [releases/android-latest](https://github.com/rbozzhanov-web/Iphone-OFP-viewer/releases/tag/android-latest).
+> See [Putting it on an Android phone](#putting-it-on-an-android-phone) below and
+> [`android/README.md`](android/README.md).
+
 ---
 
 ## Publishing it
@@ -67,6 +74,22 @@ a page.
 2. Share button → **Add to Home Screen** → Add.
 3. Launch it from the new icon. Try it once in airplane mode to confirm the
    offline cache is in place.
+
+## Putting it on an Android phone
+
+Use the app rather than the page: it installs from an APK, with no store.
+
+1. On the phone, open
+   [releases/android-latest](https://github.com/rbozzhanov-web/Iphone-OFP-viewer/releases/tag/android-latest)
+   and download **OFP-Viewer.apk**.
+2. Open the downloaded file. The first time, Android asks to allow installs from
+   the browser (or Files) — allow it, go back, and install.
+3. Launch **OFP Viewer**. A plan comes in from its own picker, or by **Open
+   with** / **Share** → OFP Viewer from Files, Mail or Telegram.
+
+Folded, it is laid out like any phone; unfolded, the same tabs open out to the
+wider screen. Folding or unfolding mid-read keeps the plan and the place. Each
+newer APK installs over the last and keeps the open plan.
 
 ## Getting the plan in
 

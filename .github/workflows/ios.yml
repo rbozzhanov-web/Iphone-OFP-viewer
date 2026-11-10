@@ -128,13 +128,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.release || github.ref_name }}
+        # The Android build may have made this release already; the IPA joins it.
         run: |
-          gh release create "$VERSION" \
-            "$RUNNER_TEMP/OFP-Viewer.ipa" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "OFP Viewer $VERSION" \
-            --notes-file .github/release-notes.md
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$VERSION" "$RUNNER_TEMP/OFP-Viewer.ipa" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$VERSION" \
+              "$RUNNER_TEMP/OFP-Viewer.ipa" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "OFP Viewer $VERSION" \
+              --notes-file .github/release-notes.md
+          fi
 
 permissions:
   contents: write

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ofp_bg">#0f1419</color>
+
+    <style name="Theme.OFPViewer" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ofp_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
